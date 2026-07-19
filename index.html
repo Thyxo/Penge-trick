@@ -65,12 +65,15 @@
         </label>
       </section>
 
-      <button class="floating-button top-left" id="settingsButton" type="button" aria-label="Aabn opsaetning">
-        &#9881;
-      </button>
-      <button class="floating-button top-right" id="resetButton" type="button" aria-label="Nulstil seddel">
-        &#8634;
-      </button>
+      <button class="control-hotspot" id="controlsHotspot" type="button" aria-label="Vis kontroller"></button>
+      <div class="floating-controls" id="floatingControls" aria-label="Skjulte kontroller">
+        <button class="floating-button" id="settingsButton" type="button" aria-label="Aabn opsaetning">
+          &#9881;
+        </button>
+        <button class="floating-button" id="resetButton" type="button" aria-label="Nulstil seddel">
+          &#8634;
+        </button>
+      </div>
 
       <img class="note" id="note" alt="Foldet pengeseddel" draggable="false">
     </main>

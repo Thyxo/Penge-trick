@@ -6,6 +6,8 @@
   const note = document.getElementById("note");
   const homeBg = document.getElementById("homeBg");
   const setupPanel = document.getElementById("setupPanel");
+  const controlsHotspot = document.getElementById("controlsHotspot");
+  const floatingControls = document.getElementById("floatingControls");
   const settingsButton = document.getElementById("settingsButton");
   const closeSetup = document.getElementById("closeSetup");
   const resetButton = document.getElementById("resetButton");
@@ -26,7 +28,9 @@
   };
 
   const noteImages = {
-    "100": "assets/100kr.png"
+    "100": "assets/100kr.png",
+    "200": "assets/200kr.png",
+    "500": "assets/500kr.png"
   };
 
   const state = {
@@ -41,6 +45,7 @@
   };
 
   let drag = null;
+  let controlsTimer = null;
 
   function loadState() {
     try {
@@ -135,6 +140,14 @@
     note.style.transform = `translate3d(${x}px, ${y}px, 0) rotate(${state.rotation}deg) scale(${state.size / 100})`;
   }
 
+  function showControls() {
+    floatingControls.classList.add("is-visible");
+    window.clearTimeout(controlsTimer);
+    controlsTimer = window.setTimeout(() => {
+      floatingControls.classList.remove("is-visible");
+    }, 2800);
+  }
+
   function resetNote() {
     state.hidden = false;
     note.classList.remove("is-hidden");
@@ -184,7 +197,7 @@
           canvas.width = width;
           canvas.height = height;
           const ctx = canvas.getContext("2d");
-          ctx.drawImage(image, (width - drawWidth) / 2, (height - drawHeight) / 2, drawWidth, drawHeight);
+          ctx.drawImage(image, (width - drawWidth) / 2, height - drawHeight, drawWidth, drawHeight);
           resolve(canvas.toDataURL("image/jpeg", 0.9));
         };
         image.src = String(reader.result);
@@ -205,6 +218,10 @@
       noteX: state.x,
       noteY: state.y
     };
+  });
+
+  note.addEventListener("click", (event) => {
+    event.preventDefault();
   });
 
   note.addEventListener("pointermove", (event) => {
@@ -266,6 +283,7 @@
 
   settingsButton.addEventListener("click", () => {
     setupPanel.classList.remove("is-collapsed");
+    showControls();
   });
 
   closeSetup.addEventListener("click", () => {
@@ -273,6 +291,8 @@
   });
 
   resetButton.addEventListener("click", resetNote);
+
+  controlsHotspot.addEventListener("click", showControls);
 
   window.addEventListener("resize", () => {
     if (!state.hidden) resetNote();

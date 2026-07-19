@@ -23,6 +23,7 @@ html,
 body {
   width: 100%;
   height: 100%;
+  height: 100dvh;
   margin: 0;
   overflow: hidden;
   overscroll-behavior: none;
@@ -43,6 +44,7 @@ input {
 .stage {
   position: fixed;
   inset: 0;
+  height: 100dvh;
   overflow: hidden;
   min-width: 320px;
   background: #101417;
@@ -60,6 +62,7 @@ input {
 .home-bg {
   z-index: 1;
   object-fit: cover;
+  object-position: center bottom;
   opacity: 0;
   transition: opacity 140ms ease;
 }
@@ -125,6 +128,8 @@ input {
   filter: drop-shadow(0 16px 18px rgba(0, 0, 0, 0.42));
   cursor: grab;
   touch-action: none;
+  -webkit-user-drag: none;
+  -webkit-touch-callout: none;
   transform-origin: 50% 50%;
   will-change: transform;
 }
@@ -188,18 +193,39 @@ h1 {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
 }
 
-.floating-button {
+.control-hotspot,
+.floating-controls {
   position: absolute;
-  z-index: 7;
+}
+
+.control-hotspot {
+  z-index: 9;
+  top: var(--safe-top);
+  right: var(--safe-right);
+  width: 92px;
+  height: 92px;
+  border: 0;
+  background: transparent;
+  color: transparent;
+  cursor: default;
+}
+
+.floating-controls {
+  z-index: 10;
   top: calc(12px + var(--safe-top));
-}
-
-.top-left {
-  left: calc(12px + var(--safe-left));
-}
-
-.top-right {
   right: calc(12px + var(--safe-right));
+  display: flex;
+  gap: 10px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-6px);
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+
+.floating-controls.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
 }
 
 .file-card {

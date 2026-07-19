@@ -1,4 +1,4 @@
-const cacheName = "penge-trick-v3";
+const cacheName = "penge-trick-v4";
 const assets = [
   "./",
   "index.html",
@@ -6,7 +6,9 @@ const assets = [
   "app.js",
   "manifest.webmanifest",
   "icons/icon.svg",
-  "assets/100kr.png"
+  "assets/100kr.png",
+  "assets/200kr.png",
+  "assets/500kr.png"
 ];
 
 self.addEventListener("install", (event) => {
