@@ -51,23 +51,33 @@ input {
   isolation: isolate;
 }
 
+.home-bg-fill,
 .home-bg,
 .fallback-bg {
   position: absolute;
 }
 
+.home-bg-fill,
 .home-bg {
-  z-index: 1;
   inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
   object-position: center bottom;
-  transform-origin: center center;
   opacity: 0;
   transition: opacity 140ms ease;
 }
 
+.home-bg-fill {
+  z-index: 1;
+}
+
+.home-bg {
+  z-index: 2;
+  transform-origin: center center;
+}
+
+.home-bg-fill.is-loaded,
 .home-bg.is-loaded {
   opacity: 1;
 }

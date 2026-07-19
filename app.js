@@ -4,6 +4,7 @@
   const storageKey = "penge-trick:v1";
   const stage = document.getElementById("stage");
   const note = document.getElementById("note");
+  const homeBgFill = document.getElementById("homeBgFill");
   const homeBg = document.getElementById("homeBg");
   const setupPanel = document.getElementById("setupPanel");
   const controlsHotspot = document.getElementById("controlsHotspot");
@@ -120,7 +121,9 @@
 
   function applyState() {
     if (state.bg) {
+      homeBgFill.src = state.bg;
       homeBg.src = state.bg;
+      homeBgFill.classList.add("is-loaded");
       homeBg.classList.add("is-loaded");
       setupPanel.classList.add("is-collapsed");
     }
@@ -371,7 +374,9 @@
     if (!file) return;
     const dataUrl = await resizeBackground(file);
     state.bg = dataUrl;
+    homeBgFill.src = dataUrl;
     homeBg.src = dataUrl;
+    homeBgFill.classList.add("is-loaded");
     homeBg.classList.add("is-loaded");
     state.bgX = 0;
     state.bgY = 0;
