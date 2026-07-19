@@ -25,6 +25,10 @@
     "1000": ["#8d626f", "#dac0c9", "#68404f"]
   };
 
+  const noteImages = {
+    "100": "assets/100kr.png"
+  };
+
   const state = {
     bg: "",
     denom: "100",
@@ -108,7 +112,7 @@
     rotationRange.value = String(state.rotation);
     sizeOutput.textContent = `${state.size}%`;
     rotationOutput.textContent = `${state.rotation} deg`;
-    note.src = foldedNoteSvg(state.denom);
+    note.src = noteImages[state.denom] || foldedNoteSvg(state.denom);
     note.classList.toggle("is-hidden", state.hidden);
 
     edgeButtons.forEach((button) => {
@@ -234,7 +238,7 @@
 
   denomination.addEventListener("change", () => {
     state.denom = denomination.value;
-    note.src = foldedNoteSvg(state.denom);
+    note.src = noteImages[state.denom] || foldedNoteSvg(state.denom);
     saveState();
   });
 
