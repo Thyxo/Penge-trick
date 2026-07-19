@@ -58,6 +58,38 @@
   let controlsTimer = null;
   let noteFrame = null;
 
+  function appViewportSize() {
+    const coarsePointer = window.matchMedia("(pointer: coarse)").matches;
+    const screenWidth = coarsePointer && window.screen ? window.screen.width : 0;
+    const screenHeight = coarsePointer && window.screen ? window.screen.height : 0;
+    const cssWidth = Math.max(
+      window.innerWidth || 0,
+      document.documentElement.clientWidth || 0,
+      window.visualViewport ? window.visualViewport.width : 0,
+      screenWidth
+    );
+    const cssHeight = Math.max(
+      window.innerHeight || 0,
+      document.documentElement.clientHeight || 0,
+      window.visualViewport ? window.visualViewport.height : 0,
+      screenHeight
+    );
+    const dpr = window.devicePixelRatio || 1;
+
+    return {
+      cssWidth,
+      cssHeight,
+      pixelWidth: Math.max(320, Math.round(cssWidth * dpr)),
+      pixelHeight: Math.max(480, Math.round(cssHeight * dpr))
+    };
+  }
+
+  function syncAppViewportSize() {
+    const size = appViewportSize();
+    document.documentElement.style.setProperty("--app-width", `${size.cssWidth}px`);
+    document.documentElement.style.setProperty("--app-height", `${size.cssHeight}px`);
+  }
+
   function loadState() {
     try {
       const saved = JSON.parse(localStorage.getItem(storageKey) || "{}");
@@ -68,16 +100,20 @@
   }
 
   function saveState() {
-    localStorage.setItem(storageKey, JSON.stringify({
-      bg: state.bg,
-      denom: state.denom,
-      edge: state.edge,
-      bgX: state.bgX,
-      bgY: state.bgY,
-      bgScale: state.bgScale,
-      size: state.size,
-      rotation: state.rotation
-    }));
+    try {
+      localStorage.setItem(storageKey, JSON.stringify({
+        bg: state.bg,
+        denom: state.denom,
+        edge: state.edge,
+        bgX: state.bgX,
+        bgY: state.bgY,
+        bgScale: state.bgScale,
+        size: state.size,
+        rotation: state.rotation
+      }));
+    } catch (error) {
+      // Large photos can exceed localStorage on iOS; keep the current illusion running.
+    }
   }
 
   function foldedNoteSvg(value) {
@@ -242,6 +278,25 @@
     drag = null;
   }
 
+  function resizeLoadedBackground(image) {
+    const size = appViewportSize();
+    const scale = Math.max(size.pixelWidth / image.width, size.pixelHeight / image.height);
+    const drawWidth = image.width * scale;
+    const drawHeight = image.height * scale;
+    const canvas = document.createElement("canvas");
+    canvas.width = size.pixelWidth;
+    canvas.height = size.pixelHeight;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(
+      image,
+      (size.pixelWidth - drawWidth) / 2,
+      (size.pixelHeight - drawHeight) / 2,
+      drawWidth,
+      drawHeight
+    );
+    return canvas.toDataURL("image/jpeg", 0.9);
+  }
+
   function applyBackgroundImage(dataUrl) {
     const cssUrl = `url("${dataUrl.replace(/"/g, '\\"')}")`;
     document.documentElement.style.setProperty("--home-bg-image", cssUrl);
@@ -255,9 +310,28 @@
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onerror = reject;
-      reader.onload = () => resolve(String(reader.result));
+      reader.onload = () => {
+        const image = new Image();
+        image.onerror = reject;
+        image.onload = () => resolve(resizeLoadedBackground(image));
+        image.src = String(reader.result);
+      };
       reader.readAsDataURL(file);
     });
+  }
+
+  function normalizeSavedBackground() {
+    if (!state.bg) return;
+
+    const image = new Image();
+    image.onload = () => {
+      const size = appViewportSize();
+      if (Math.abs(image.width - size.pixelWidth) <= 2 && Math.abs(image.height - size.pixelHeight) <= 2) return;
+      state.bg = resizeLoadedBackground(image);
+      applyBackgroundImage(state.bg);
+      saveState();
+    };
+    image.src = state.bg;
   }
 
   note.addEventListener("pointerdown", (event) => {
@@ -385,9 +459,17 @@
 
   controlsHotspot.addEventListener("click", showControls);
 
-  window.addEventListener("resize", () => {
+  function handleViewportChange() {
+    syncAppViewportSize();
     if (!state.hidden) resetNote();
-  });
+    normalizeSavedBackground();
+  }
+
+  window.addEventListener("resize", handleViewportChange);
+  window.addEventListener("orientationchange", handleViewportChange);
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", handleViewportChange);
+  }
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
@@ -395,7 +477,9 @@
     });
   }
 
+  syncAppViewportSize();
   loadState();
+  normalizeSavedBackground();
   note.addEventListener("load", () => {
     if (!state.x && !state.y) defaultPosition();
     applyState();

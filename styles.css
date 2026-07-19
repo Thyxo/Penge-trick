@@ -1,5 +1,7 @@
 :root {
   color-scheme: dark;
+  --app-width: 100vw;
+  --app-height: 100vh;
   --home-bg-image: none;
   --ink: #f6f2e8;
   --muted: rgba(246, 242, 232, 0.72);
@@ -22,9 +24,9 @@
 
 html,
 body {
-  width: 100%;
-  height: 100%;
-  height: 100dvh;
+  width: var(--app-width);
+  height: var(--app-height);
+  min-height: var(--app-height);
   margin: 0;
   overflow: hidden;
   overscroll-behavior: none;
@@ -48,11 +50,10 @@ input {
 
 .stage {
   position: fixed;
-  inset: 0;
-  width: 100vw;
-  height: 100vh;
-  height: 100dvh;
-  min-height: 100dvh;
+  top: 0;
+  left: 0;
+  width: var(--app-width);
+  height: var(--app-height);
   overflow: hidden;
   min-width: 320px;
   background-color: #101417;
@@ -71,9 +72,10 @@ input {
 
 .home-bg-fill,
 .home-bg {
-  inset: 0;
-  width: 100%;
-  height: 100%;
+  top: 0;
+  left: 0;
+  width: var(--app-width);
+  height: var(--app-height);
   object-fit: cover;
   object-position: center bottom;
   opacity: 0;
@@ -95,9 +97,10 @@ input {
 }
 
 .fallback-bg {
-  inset: 0;
-  width: 100%;
-  height: 100%;
+  top: 0;
+  left: 0;
+  width: var(--app-width);
+  height: var(--app-height);
   z-index: 0;
   background:
     radial-gradient(circle at 28% 12%, rgba(110, 231, 183, 0.28), transparent 28%),
