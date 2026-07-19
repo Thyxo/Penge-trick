@@ -245,42 +245,24 @@
     drag = null;
   }
 
-  function findVisibleImageBounds(image) {
-    const probe = document.createElement("canvas");
-    const probeWidth = 96;
-    const probeHeight = Math.max(160, Math.round(image.height * (probeWidth / image.width)));
-    probe.width = probeWidth;
-    probe.height = probeHeight;
-
-    const ctx = probe.getContext("2d", { willReadFrequently: true });
-    ctx.drawImage(image, 0, 0, probeWidth, probeHeight);
-
-    const data = ctx.getImageData(0, 0, probeWidth, probeHeight).data;
-    let top = 0;
-    let bottom = probeHeight - 1;
-
-    function isDarkRow(y) {
-      let darkPixels = 0;
-      for (let x = 0; x < probeWidth; x += 1) {
-        const index = (y * probeWidth + x) * 4;
-        const r = data[index];
-        const g = data[index + 1];
-        const b = data[index + 2];
-        if (r < 18 && g < 18 && b < 18) darkPixels += 1;
-      }
-      return darkPixels / probeWidth > 0.92;
-    }
-
-    while (top < probeHeight - 1 && isDarkRow(top)) top += 1;
-    while (bottom > top && isDarkRow(bottom)) bottom -= 1;
-
-    const scaleY = image.height / probeHeight;
-    return {
-      sx: 0,
-      sy: Math.floor(top * scaleY),
-      sw: image.width,
-      sh: Math.max(1, Math.ceil((bottom - top + 1) * scaleY))
-    };
+  function resizeLoadedBackground(image) {
+    const canvas = document.createElement("canvas");
+    const width = Math.max(320, Math.round(window.innerWidth * window.devicePixelRatio));
+    const height = Math.max(480, Math.round(window.innerHeight * window.devicePixelRatio));
+    const scale = Math.max(width / image.width, height / image.height);
+    const drawWidth = image.width * scale;
+    const drawHeight = image.height * scale;
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(
+      image,
+      (width - drawWidth) / 2,
+      (height - drawHeight) / 2,
+      drawWidth,
+      drawHeight
+    );
+    return canvas.toDataURL("image/jpeg", 0.9);
   }
 
   function resizeBackground(file) {
@@ -291,28 +273,7 @@
         const image = new Image();
         image.onerror = reject;
         image.onload = () => {
-          const canvas = document.createElement("canvas");
-          const width = Math.max(320, Math.round(window.innerWidth * window.devicePixelRatio));
-          const height = Math.max(480, Math.round(window.innerHeight * window.devicePixelRatio));
-          const source = findVisibleImageBounds(image);
-          const scale = Math.max(width / source.sw, height / source.sh);
-          const drawWidth = source.sw * scale;
-          const drawHeight = source.sh * scale;
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext("2d");
-          ctx.drawImage(
-            image,
-            source.sx,
-            source.sy,
-            source.sw,
-            source.sh,
-            (width - drawWidth) / 2,
-            (height - drawHeight) / 2,
-            drawWidth,
-            drawHeight
-          );
-          resolve(canvas.toDataURL("image/jpeg", 0.9));
+          resolve(resizeLoadedBackground(image));
         };
         image.src = String(reader.result);
       };

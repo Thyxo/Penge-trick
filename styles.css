@@ -44,7 +44,8 @@ input {
 .stage {
   position: fixed;
   inset: 0;
-  height: 100dvh;
+  height: auto;
+  min-height: 100dvh;
   overflow: hidden;
   min-width: 320px;
   background: #101417;
