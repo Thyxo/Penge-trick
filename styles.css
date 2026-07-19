@@ -58,12 +58,12 @@ input {
 
 .home-bg {
   z-index: 1;
-  left: -120px;
-  top: -180px;
-  width: calc(100% + 240px);
-  height: calc(100% + 360px);
+  inset: 0;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
   object-position: center bottom;
+  transform-origin: center center;
   opacity: 0;
   transition: opacity 140ms ease;
 }

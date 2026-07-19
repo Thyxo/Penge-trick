@@ -17,6 +17,8 @@
   const bgXOutput = document.getElementById("bgXOutput");
   const bgYRange = document.getElementById("bgYRange");
   const bgYOutput = document.getElementById("bgYOutput");
+  const bgScaleRange = document.getElementById("bgScaleRange");
+  const bgScaleOutput = document.getElementById("bgScaleOutput");
   const sizeRange = document.getElementById("sizeRange");
   const sizeOutput = document.getElementById("sizeOutput");
   const rotationRange = document.getElementById("rotationRange");
@@ -43,6 +45,7 @@
     edge: "right",
     bgX: 0,
     bgY: 0,
+    bgScale: 100,
     size: 100,
     rotation: -7,
     x: 0,
@@ -70,6 +73,7 @@
       edge: state.edge,
       bgX: state.bgX,
       bgY: state.bgY,
+      bgScale: state.bgScale,
       size: state.size,
       rotation: state.rotation
     }));
@@ -124,8 +128,10 @@
     denomination.value = state.denom;
     bgXRange.value = String(state.bgX);
     bgYRange.value = String(state.bgY);
+    bgScaleRange.value = String(state.bgScale);
     bgXOutput.textContent = String(state.bgX);
     bgYOutput.textContent = String(state.bgY);
+    bgScaleOutput.textContent = `${state.bgScale}%`;
     sizeRange.value = String(state.size);
     rotationRange.value = String(state.rotation);
     sizeOutput.textContent = `${state.size}%`;
@@ -142,7 +148,7 @@
   }
 
   function applyBackgroundOffset() {
-    homeBg.style.transform = `translate3d(${state.bgX}px, ${state.bgY}px, 0)`;
+    homeBg.style.transform = `translate3d(${state.bgX}px, ${state.bgY}px, 0) scale(${state.bgScale / 100})`;
   }
 
   function defaultPosition() {
@@ -369,6 +375,7 @@
     homeBg.classList.add("is-loaded");
     state.bgX = 0;
     state.bgY = 0;
+    state.bgScale = 100;
     applyState();
     setupPanel.classList.add("is-collapsed");
     saveState();
@@ -390,6 +397,13 @@
   bgYRange.addEventListener("input", () => {
     state.bgY = Number(bgYRange.value);
     bgYOutput.textContent = String(state.bgY);
+    applyBackgroundOffset();
+    saveState();
+  });
+
+  bgScaleRange.addEventListener("input", () => {
+    state.bgScale = Number(bgScaleRange.value);
+    bgScaleOutput.textContent = `${state.bgScale}%`;
     applyBackgroundOffset();
     saveState();
   });
