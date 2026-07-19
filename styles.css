@@ -202,8 +202,8 @@ h1 {
   z-index: 9;
   top: var(--safe-top);
   right: var(--safe-right);
-  width: 92px;
-  height: 92px;
+  width: 72px;
+  height: 72px;
   border: 0;
   background: transparent;
   color: transparent;
