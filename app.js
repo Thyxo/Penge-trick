@@ -20,6 +20,8 @@
   const bgYOutput = document.getElementById("bgYOutput");
   const bgScaleRange = document.getElementById("bgScaleRange");
   const bgScaleOutput = document.getElementById("bgScaleOutput");
+  const sensitivityRange = document.getElementById("sensitivityRange");
+  const sensitivityOutput = document.getElementById("sensitivityOutput");
   const sizeRange = document.getElementById("sizeRange");
   const sizeOutput = document.getElementById("sizeOutput");
   const rotationRange = document.getElementById("rotationRange");
@@ -47,6 +49,7 @@
     bgX: 0,
     bgY: 0,
     bgScale: 100,
+    sensitivity: 60,
     size: 100,
     rotation: -7,
     x: 0,
@@ -108,6 +111,7 @@
         bgX: state.bgX,
         bgY: state.bgY,
         bgScale: state.bgScale,
+        sensitivity: state.sensitivity,
         size: state.size,
         rotation: state.rotation
       }));
@@ -165,9 +169,11 @@
     bgXRange.value = String(state.bgX);
     bgYRange.value = String(state.bgY);
     bgScaleRange.value = String(state.bgScale);
+    sensitivityRange.value = String(state.sensitivity);
     bgXOutput.textContent = String(state.bgX);
     bgYOutput.textContent = String(state.bgY);
     bgScaleOutput.textContent = `${state.bgScale}%`;
+    sensitivityOutput.textContent = `${state.sensitivity} px`;
     sizeRange.value = String(state.size);
     rotationRange.value = String(state.rotation);
     sizeOutput.textContent = `${state.size}%`;
@@ -252,13 +258,14 @@
   function crossedExitEdge(rect) {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
+    const sensitivity = Number(state.sensitivity) || 0;
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
 
-    if (state.edge === "left") return centerX <= 0;
-    if (state.edge === "right") return centerX >= vw;
-    if (state.edge === "top") return centerY <= 0;
-    return centerY >= vh;
+    if (state.edge === "left") return centerX <= sensitivity;
+    if (state.edge === "right") return centerX >= vw - sensitivity;
+    if (state.edge === "top") return centerY <= sensitivity;
+    return centerY >= vh - sensitivity;
   }
 
   function hideAtEdge() {
@@ -421,6 +428,12 @@
     state.bgScale = Number(bgScaleRange.value);
     bgScaleOutput.textContent = `${state.bgScale}%`;
     applyBackgroundOffset();
+    saveState();
+  });
+
+  sensitivityRange.addEventListener("input", () => {
+    state.sensitivity = Number(sensitivityRange.value);
+    sensitivityOutput.textContent = `${state.sensitivity} px`;
     saveState();
   });
 

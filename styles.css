@@ -180,6 +180,8 @@ input {
   bottom: max(12px, var(--safe-bottom));
   display: grid;
   gap: 14px;
+  max-height: calc(var(--app-height) - max(24px, var(--safe-top)) - max(24px, var(--safe-bottom)));
+  overflow-y: auto;
   padding: 16px;
   border: 1px solid var(--line);
   border-radius: 8px;
