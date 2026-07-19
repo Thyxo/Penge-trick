@@ -13,6 +13,10 @@
   const resetButton = document.getElementById("resetButton");
   const bgInput = document.getElementById("bgInput");
   const denomination = document.getElementById("denomination");
+  const bgXRange = document.getElementById("bgXRange");
+  const bgXOutput = document.getElementById("bgXOutput");
+  const bgYRange = document.getElementById("bgYRange");
+  const bgYOutput = document.getElementById("bgYOutput");
   const sizeRange = document.getElementById("sizeRange");
   const sizeOutput = document.getElementById("sizeOutput");
   const rotationRange = document.getElementById("rotationRange");
@@ -37,6 +41,8 @@
     bg: "",
     denom: "100",
     edge: "right",
+    bgX: 0,
+    bgY: 0,
     size: 100,
     rotation: -7,
     x: 0,
@@ -46,6 +52,7 @@
 
   let drag = null;
   let controlsTimer = null;
+  let noteFrame = null;
 
   function loadState() {
     try {
@@ -61,6 +68,8 @@
       bg: state.bg,
       denom: state.denom,
       edge: state.edge,
+      bgX: state.bgX,
+      bgY: state.bgY,
       size: state.size,
       rotation: state.rotation
     }));
@@ -113,6 +122,10 @@
     }
 
     denomination.value = state.denom;
+    bgXRange.value = String(state.bgX);
+    bgYRange.value = String(state.bgY);
+    bgXOutput.textContent = String(state.bgX);
+    bgYOutput.textContent = String(state.bgY);
     sizeRange.value = String(state.size);
     rotationRange.value = String(state.rotation);
     sizeOutput.textContent = `${state.size}%`;
@@ -125,6 +138,11 @@
     });
 
     moveNote(state.x, state.y);
+    applyBackgroundOffset();
+  }
+
+  function applyBackgroundOffset() {
+    homeBg.style.transform = `translate3d(${state.bgX}px, ${state.bgY}px, 0)`;
   }
 
   function defaultPosition() {
@@ -138,6 +156,40 @@
     state.x = x;
     state.y = y;
     note.style.transform = `translate3d(${x}px, ${y}px, 0) rotate(${state.rotation}deg) scale(${state.size / 100})`;
+  }
+
+  function updateReactiveNote() {
+    if (!drag || noteFrame) return;
+
+    noteFrame = window.requestAnimationFrame((time) => {
+      noteFrame = null;
+      if (!drag) return;
+
+      const elapsed = Math.max(8, time - drag.lastTime);
+      drag.lastTime = time;
+
+      const dx = drag.targetX - state.x;
+      const dy = drag.targetY - state.y;
+      const distance = Math.hypot(dx, dy);
+      if (distance < 0.5) return;
+
+      const maxStep = Math.max(8, elapsed * 1.45);
+      const fastPullLimit = 96;
+      const step = distance > fastPullLimit ? Math.min(maxStep * 0.35, distance) : Math.min(maxStep, distance);
+      const nextX = state.x + (dx / distance) * step;
+      const nextY = state.y + (dy / distance) * step;
+
+      moveNote(nextX, nextY);
+
+      if (crossedExitEdge(note.getBoundingClientRect())) {
+        hideAtEdge();
+        return;
+      }
+
+      if (Math.hypot(drag.targetX - state.x, drag.targetY - state.y) > 0.5) {
+        updateReactiveNote();
+      }
+    });
   }
 
   function showControls() {
@@ -176,6 +228,10 @@
       } catch (error) {
         // Pointer capture may already be gone if the finger left the viewport.
       }
+    }
+    if (noteFrame) {
+      window.cancelAnimationFrame(noteFrame);
+      noteFrame = null;
     }
     drag = null;
   }
@@ -262,10 +318,13 @@
     note.classList.add("is-dragging");
     drag = {
       pointerId: event.pointerId,
-      startX: event.clientX,
-      startY: event.clientY,
-      noteX: state.x,
-      noteY: state.y
+      pointerX: event.clientX,
+      pointerY: event.clientY,
+      offsetX: event.clientX - state.x,
+      offsetY: event.clientY - state.y,
+      targetX: state.x,
+      targetY: state.y,
+      lastTime: performance.now()
     };
   });
 
@@ -275,19 +334,29 @@
 
   note.addEventListener("pointermove", (event) => {
     if (!drag || drag.pointerId !== event.pointerId) return;
-    const nextX = drag.noteX + event.clientX - drag.startX;
-    const nextY = drag.noteY + event.clientY - drag.startY;
-    moveNote(nextX, nextY);
+    drag.pointerX = event.clientX;
+    drag.pointerY = event.clientY;
+    drag.targetX = event.clientX - drag.offsetX;
+    drag.targetY = event.clientY - drag.offsetY;
+    updateReactiveNote();
     if (crossedExitEdge(note.getBoundingClientRect())) hideAtEdge();
   });
 
   note.addEventListener("pointerup", () => {
     note.classList.remove("is-dragging");
+    if (noteFrame) {
+      window.cancelAnimationFrame(noteFrame);
+      noteFrame = null;
+    }
     drag = null;
   });
 
   note.addEventListener("pointercancel", () => {
     note.classList.remove("is-dragging");
+    if (noteFrame) {
+      window.cancelAnimationFrame(noteFrame);
+      noteFrame = null;
+    }
     drag = null;
   });
 
@@ -298,6 +367,9 @@
     state.bg = dataUrl;
     homeBg.src = dataUrl;
     homeBg.classList.add("is-loaded");
+    state.bgX = 0;
+    state.bgY = 0;
+    applyState();
     setupPanel.classList.add("is-collapsed");
     saveState();
   });
@@ -305,6 +377,20 @@
   denomination.addEventListener("change", () => {
     state.denom = denomination.value;
     note.src = noteImages[state.denom] || foldedNoteSvg(state.denom);
+    saveState();
+  });
+
+  bgXRange.addEventListener("input", () => {
+    state.bgX = Number(bgXRange.value);
+    bgXOutput.textContent = String(state.bgX);
+    applyBackgroundOffset();
+    saveState();
+  });
+
+  bgYRange.addEventListener("input", () => {
+    state.bgY = Number(bgYRange.value);
+    bgYOutput.textContent = String(state.bgY);
+    applyBackgroundOffset();
     saveState();
   });
 
