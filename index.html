@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="da">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+    <meta name="theme-color" content="#101417">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Penge Trick">
+    <title>Penge Trick</title>
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="stage" id="stage" aria-label="Penge trick scene">
+      <img class="home-bg" id="homeBg" alt="" draggable="false">
+      <div class="fallback-bg" id="fallbackBg" aria-hidden="true">
+        <div class="phone-grid"></div>
+      </div>
+
+      <section class="setup-panel" id="setupPanel" aria-label="Opsaetning">
+        <div class="setup-header">
+          <h1>Penge Trick</h1>
+          <button class="icon-button" id="closeSetup" type="button" aria-label="Luk opsaetning">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+
+        <label class="file-card" for="bgInput">
+          <span class="file-icon" aria-hidden="true">&#9635;</span>
+          <span>
+            <strong>Vaelg foto af hjemmeskaerm</strong>
+            <small>Brug et screenshot eller et kamerafoto i fuld skaerm.</small>
+          </span>
+        </label>
+        <input id="bgInput" class="sr-only" type="file" accept="image/*">
+
+        <label class="field">
+          <span>Valoer</span>
+          <select id="denomination">
+            <option value="50">50 kr</option>
+            <option value="100" selected>100 kr</option>
+            <option value="200">200 kr</option>
+            <option value="500">500 kr</option>
+            <option value="1000">1000 kr</option>
+          </select>
+        </label>
+
+        <div class="segmented" role="group" aria-label="Forsvindingskant">
+          <button type="button" data-edge="left">Venstre</button>
+          <button type="button" data-edge="right" aria-pressed="true">Hoejre</button>
+          <button type="button" data-edge="bottom">Bund</button>
+          <button type="button" data-edge="top">Top</button>
+        </div>
+
+        <label class="range-field">
+          <span>Stoerrelse <output id="sizeOutput">100%</output></span>
+          <input id="sizeRange" type="range" min="70" max="140" value="100">
+        </label>
+
+        <label class="range-field">
+          <span>Rotation <output id="rotationOutput">-7 deg</output></span>
+          <input id="rotationRange" type="range" min="-25" max="25" value="-7">
+        </label>
+      </section>
+
+      <button class="floating-button top-left" id="settingsButton" type="button" aria-label="Aabn opsaetning">
+        &#9881;
+      </button>
+      <button class="floating-button top-right" id="resetButton" type="button" aria-label="Nulstil seddel">
+        &#8634;
+      </button>
+
+      <img class="note" id="note" alt="Foldet pengeseddel" draggable="false">
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>

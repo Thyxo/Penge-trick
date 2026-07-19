@@ -1,0 +1,19 @@
+{
+  "name": "Penge Trick",
+  "short_name": "Penge Trick",
+  "description": "Mobil PWA til illusionen med en foldet pengeseddel, der traekkes ud af skaermen.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "fullscreen",
+  "orientation": "portrait",
+  "background_color": "#101417",
+  "theme_color": "#101417",
+  "icons": [
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
