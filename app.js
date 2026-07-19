@@ -121,10 +121,7 @@
 
   function applyState() {
     if (state.bg) {
-      homeBgFill.src = state.bg;
-      homeBg.src = state.bg;
-      homeBgFill.classList.add("is-loaded");
-      homeBg.classList.add("is-loaded");
+      applyBackgroundImage(state.bg);
       setupPanel.classList.add("is-collapsed");
     }
 
@@ -245,38 +242,20 @@
     drag = null;
   }
 
-  function resizeLoadedBackground(image) {
-    const canvas = document.createElement("canvas");
-    const width = Math.max(320, Math.round(window.innerWidth * window.devicePixelRatio));
-    const height = Math.max(480, Math.round(window.innerHeight * window.devicePixelRatio));
-    const scale = Math.max(width / image.width, height / image.height);
-    const drawWidth = image.width * scale;
-    const drawHeight = image.height * scale;
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext("2d");
-    ctx.drawImage(
-      image,
-      (width - drawWidth) / 2,
-      (height - drawHeight) / 2,
-      drawWidth,
-      drawHeight
-    );
-    return canvas.toDataURL("image/jpeg", 0.9);
+  function applyBackgroundImage(dataUrl) {
+    const cssUrl = `url("${dataUrl.replace(/"/g, '\\"')}")`;
+    document.documentElement.style.setProperty("--home-bg-image", cssUrl);
+    homeBgFill.src = dataUrl;
+    homeBg.src = dataUrl;
+    homeBgFill.classList.add("is-loaded");
+    homeBg.classList.add("is-loaded");
   }
 
-  function resizeBackground(file) {
+  function readBackground(file) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onerror = reject;
-      reader.onload = () => {
-        const image = new Image();
-        image.onerror = reject;
-        image.onload = () => {
-          resolve(resizeLoadedBackground(image));
-        };
-        image.src = String(reader.result);
-      };
+      reader.onload = () => resolve(String(reader.result));
       reader.readAsDataURL(file);
     });
   }
@@ -333,12 +312,9 @@
   bgInput.addEventListener("change", async () => {
     const file = bgInput.files && bgInput.files[0];
     if (!file) return;
-    const dataUrl = await resizeBackground(file);
+    const dataUrl = await readBackground(file);
     state.bg = dataUrl;
-    homeBgFill.src = dataUrl;
-    homeBg.src = dataUrl;
-    homeBgFill.classList.add("is-loaded");
-    homeBg.classList.add("is-loaded");
+    applyBackgroundImage(dataUrl);
     state.bgX = 0;
     state.bgY = 0;
     state.bgScale = 100;
