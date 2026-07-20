@@ -87,6 +87,14 @@
           <span>Rotation <output id="rotationOutput">-7 deg</output></span>
           <input id="rotationRange" type="range" min="-25" max="25" value="-7">
         </label>
+
+        <div class="tilt-panel" aria-label="Tilt styring">
+          <div class="tilt-actions">
+            <button class="tilt-action" id="tiltButton" type="button">Aktiver tilt</button>
+            <button class="tilt-action" id="tiltCalibrateButton" type="button" disabled>Nulstil vandret</button>
+          </div>
+          <small class="tilt-status" id="tiltStatus">Tilt er slaaet fra.</small>
+        </div>
       </section>
 
       <button class="control-hotspot" id="controlsHotspot" type="button" aria-label="Vis kontroller"></button>
@@ -96,6 +104,12 @@
         </button>
         <button class="floating-button" id="resetButton" type="button" aria-label="Nulstil seddel">
           &#8634;
+        </button>
+        <button class="floating-button" id="quickTiltButton" type="button" aria-label="Aktiver tilt">
+          T
+        </button>
+        <button class="floating-button" id="quickTiltCalibrateButton" type="button" aria-label="Nulstil vandret" disabled>
+          &#8982;
         </button>
       </div>
 

@@ -259,6 +259,12 @@ h1 {
   transform: translateY(0);
 }
 
+.floating-button.is-on {
+  border-color: transparent;
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
 .file-card {
   display: grid;
   grid-template-columns: 42px 1fr;
@@ -342,6 +348,45 @@ select {
   border-color: transparent;
   background: var(--accent);
   color: var(--accent-ink);
+}
+
+.tilt-panel {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(246, 242, 232, 0.08);
+}
+
+.tilt-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.tilt-action {
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  cursor: pointer;
+}
+
+.tilt-action:disabled,
+.floating-button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.tilt-action + .tilt-action {
+  background: rgba(0, 0, 0, 0.24);
+  color: var(--ink);
+}
+
+.tilt-status {
+  min-height: 1.25em;
 }
 
 input[type="range"] {

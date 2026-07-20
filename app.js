@@ -12,6 +12,11 @@
   const settingsButton = document.getElementById("settingsButton");
   const closeSetup = document.getElementById("closeSetup");
   const resetButton = document.getElementById("resetButton");
+  const tiltButton = document.getElementById("tiltButton");
+  const tiltCalibrateButton = document.getElementById("tiltCalibrateButton");
+  const quickTiltButton = document.getElementById("quickTiltButton");
+  const quickTiltCalibrateButton = document.getElementById("quickTiltCalibrateButton");
+  const tiltStatus = document.getElementById("tiltStatus");
   const bgInput = document.getElementById("bgInput");
   const denomination = document.getElementById("denomination");
   const bgXRange = document.getElementById("bgXRange");
@@ -66,6 +71,28 @@
   let drag = null;
   let controlsTimer = null;
   let noteFrame = null;
+  let tiltFrame = null;
+
+  const tilt = {
+    enabled: false,
+    hasReading: false,
+    beta: 0,
+    gamma: 0,
+    baseBeta: 0,
+    baseGamma: 0,
+    vx: 0,
+    vy: 0,
+    lastTime: null
+  };
+
+  const tiltPhysics = {
+    degreesToAcceleration: 62,
+    maxTiltDegrees: 24,
+    frictionPerFrame: 0.996,
+    bounceLoss: 0.76,
+    maxSpeed: 1900,
+    stopSpeed: 2.5
+  };
 
   function appViewportSize() {
     const coarsePointer = window.matchMedia("(pointer: coarse)").matches;
@@ -97,6 +124,10 @@
     const size = appViewportSize();
     document.documentElement.style.setProperty("--app-width", `${size.cssWidth}px`);
     document.documentElement.style.setProperty("--app-height", `${size.cssHeight}px`);
+  }
+
+  function clamp(value, min, max) {
+    return Math.min(max, Math.max(min, value));
   }
 
   function loadState() {
@@ -246,6 +277,189 @@
     });
   }
 
+  function setTiltStatus(message) {
+    if (tiltStatus) tiltStatus.textContent = message;
+  }
+
+  function updateTiltControls() {
+    if (tiltButton) tiltButton.textContent = tilt.enabled ? "Tilt aktiv" : "Aktiver tilt";
+    if (quickTiltButton) {
+      quickTiltButton.classList.toggle("is-on", tilt.enabled);
+      quickTiltButton.setAttribute("aria-label", tilt.enabled ? "Tilt aktiv" : "Aktiver tilt");
+    }
+
+    [tiltCalibrateButton, quickTiltCalibrateButton].forEach((button) => {
+      if (!button) return;
+      button.disabled = !tilt.enabled || !tilt.hasReading;
+    });
+  }
+
+  function handleDeviceOrientation(event) {
+    if (typeof event.beta !== "number" || typeof event.gamma !== "number") return;
+
+    tilt.beta = event.beta;
+    tilt.gamma = event.gamma;
+
+    if (!tilt.hasReading) {
+      tilt.baseBeta = tilt.beta;
+      tilt.baseGamma = tilt.gamma;
+      setTiltStatus("Tilt aktiv. Nulpunktet er sat efter den nuvaerende vinkel.");
+    }
+
+    tilt.hasReading = true;
+    updateTiltControls();
+  }
+
+  async function enableTilt() {
+    if (tilt.enabled) {
+      setTiltStatus(tilt.hasReading ? "Tilt er allerede aktiv." : "Tilt venter paa sensor-data.");
+      return;
+    }
+
+    if (typeof window.DeviceOrientationEvent === "undefined") {
+      setTiltStatus("Denne browser tilbyder ikke bevaegelsessensorer.");
+      updateTiltControls();
+      return;
+    }
+
+    if (!window.isSecureContext && window.location.hostname !== "localhost") {
+      setTiltStatus("Tilt kraever HTTPS paa telefonen.");
+      updateTiltControls();
+      return;
+    }
+
+    try {
+      if (typeof window.DeviceOrientationEvent.requestPermission === "function") {
+        const permission = await window.DeviceOrientationEvent.requestPermission();
+        if (permission !== "granted") {
+          setTiltStatus("Tilt blev ikke tilladt.");
+          updateTiltControls();
+          return;
+        }
+      }
+
+      window.addEventListener("deviceorientation", handleDeviceOrientation, true);
+      tilt.enabled = true;
+      tilt.hasReading = false;
+      tilt.lastTime = null;
+      setTiltStatus("Tilt aktiv. Hold telefonen roligt et oejeblik.");
+      updateTiltControls();
+      startTiltLoop();
+    } catch (error) {
+      setTiltStatus("Tilt kunne ikke aktiveres i denne browser.");
+      updateTiltControls();
+    }
+  }
+
+  function calibrateTilt() {
+    if (!tilt.enabled) {
+      enableTilt();
+      return;
+    }
+
+    if (!tilt.hasReading) {
+      setTiltStatus("Venter paa sensor-data foer nulstilling.");
+      return;
+    }
+
+    tilt.baseBeta = tilt.beta;
+    tilt.baseGamma = tilt.gamma;
+    tilt.vx *= 0.35;
+    tilt.vy *= 0.35;
+    setTiltStatus("Vandret nulpunkt er nulstillet.");
+    updateTiltControls();
+  }
+
+  function notePhysicsSize() {
+    const scale = state.size / 100;
+    return {
+      width: Math.max(1, note.offsetWidth * scale),
+      height: Math.max(1, note.offsetHeight * scale)
+    };
+  }
+
+  function bounceTiltAtEdges(nextX, nextY) {
+    const stageRect = stage.getBoundingClientRect();
+    const noteSize = notePhysicsSize();
+    const maxX = Math.max(0, stageRect.width - noteSize.width);
+    const maxY = Math.max(0, stageRect.height - noteSize.height);
+    let x = nextX;
+    let y = nextY;
+
+    if (x < 0) {
+      x = 0;
+      if (tilt.vx < 0) tilt.vx = Math.abs(tilt.vx) * tiltPhysics.bounceLoss;
+    } else if (x > maxX) {
+      x = maxX;
+      if (tilt.vx > 0) tilt.vx = -Math.abs(tilt.vx) * tiltPhysics.bounceLoss;
+    }
+
+    if (y < 0) {
+      y = 0;
+      if (tilt.vy < 0) tilt.vy = Math.abs(tilt.vy) * tiltPhysics.bounceLoss;
+    } else if (y > maxY) {
+      y = maxY;
+      if (tilt.vy > 0) tilt.vy = -Math.abs(tilt.vy) * tiltPhysics.bounceLoss;
+    }
+
+    moveNote(x, y);
+  }
+
+  function startTiltLoop() {
+    if (tiltFrame || !tilt.enabled) return;
+    tiltFrame = window.requestAnimationFrame(updateTiltPhysics);
+  }
+
+  function updateTiltPhysics(time) {
+    tiltFrame = null;
+
+    if (!tilt.enabled) return;
+
+    if (!tilt.lastTime) tilt.lastTime = time;
+    const dt = Math.min(0.04, Math.max(0.001, (time - tilt.lastTime) / 1000));
+    tilt.lastTime = time;
+
+    if (state.hidden) {
+      tilt.vx = 0;
+      tilt.vy = 0;
+      startTiltLoop();
+      return;
+    }
+
+    if (drag) {
+      startTiltLoop();
+      return;
+    }
+
+    let ax = 0;
+    let ay = 0;
+
+    if (tilt.hasReading) {
+      const gamma = clamp(tilt.gamma - tilt.baseGamma, -tiltPhysics.maxTiltDegrees, tiltPhysics.maxTiltDegrees);
+      const beta = clamp(tilt.beta - tilt.baseBeta, -tiltPhysics.maxTiltDegrees, tiltPhysics.maxTiltDegrees);
+      ax = gamma * tiltPhysics.degreesToAcceleration;
+      ay = beta * tiltPhysics.degreesToAcceleration;
+    }
+
+    tilt.vx += ax * dt;
+    tilt.vy += ay * dt;
+
+    const damping = Math.pow(tiltPhysics.frictionPerFrame, dt * 60);
+    tilt.vx = clamp(tilt.vx * damping, -tiltPhysics.maxSpeed, tiltPhysics.maxSpeed);
+    tilt.vy = clamp(tilt.vy * damping, -tiltPhysics.maxSpeed, tiltPhysics.maxSpeed);
+
+    if (Math.hypot(tilt.vx, tilt.vy) < tiltPhysics.stopSpeed && Math.hypot(ax, ay) < 1) {
+      tilt.vx = 0;
+      tilt.vy = 0;
+    }
+
+    if (tilt.vx || tilt.vy) {
+      bounceTiltAtEdges(state.x + tilt.vx * dt, state.y + tilt.vy * dt);
+    }
+
+    startTiltLoop();
+  }
+
   function showControls() {
     floatingControls.classList.add("is-visible");
     window.clearTimeout(controlsTimer);
@@ -256,6 +470,8 @@
 
   function resetNote() {
     state.hidden = false;
+    tilt.vx = 0;
+    tilt.vy = 0;
     note.classList.remove("is-hidden");
     defaultPosition();
     moveNote(state.x, state.y);
@@ -276,6 +492,8 @@
 
   function hideAtEdge() {
     state.hidden = true;
+    tilt.vx = 0;
+    tilt.vy = 0;
     note.classList.add("is-hidden");
     if (drag && drag.pointerId !== null) {
       try {
@@ -289,6 +507,25 @@
       noteFrame = null;
     }
     drag = null;
+  }
+
+  function endDrag(inheritVelocity) {
+    if (!drag) return;
+
+    const finishedDrag = drag;
+    note.classList.remove("is-dragging");
+    if (noteFrame) {
+      window.cancelAnimationFrame(noteFrame);
+      noteFrame = null;
+    }
+
+    drag = null;
+
+    if (inheritVelocity && !state.hidden) {
+      tilt.vx = clamp(finishedDrag.velocityX || 0, -tiltPhysics.maxSpeed, tiltPhysics.maxSpeed);
+      tilt.vy = clamp(finishedDrag.velocityY || 0, -tiltPhysics.maxSpeed, tiltPhysics.maxSpeed);
+      startTiltLoop();
+    }
   }
 
   function resizeLoadedBackground(image) {
@@ -352,6 +589,8 @@
     event.preventDefault();
     note.setPointerCapture(event.pointerId);
     note.classList.add("is-dragging");
+    tilt.vx = 0;
+    tilt.vy = 0;
     drag = {
       pointerId: event.pointerId,
       pointerX: event.clientX,
@@ -360,6 +599,9 @@
       offsetY: event.clientY - state.y,
       targetX: state.x,
       targetY: state.y,
+      velocityX: 0,
+      velocityY: 0,
+      pointerTime: performance.now(),
       lastTime: performance.now()
     };
   });
@@ -370,8 +612,13 @@
 
   note.addEventListener("pointermove", (event) => {
     if (!drag || drag.pointerId !== event.pointerId) return;
+    const now = performance.now();
+    const elapsed = Math.max(0.008, (now - drag.pointerTime) / 1000);
+    drag.velocityX = (event.clientX - drag.pointerX) / elapsed;
+    drag.velocityY = (event.clientY - drag.pointerY) / elapsed;
     drag.pointerX = event.clientX;
     drag.pointerY = event.clientY;
+    drag.pointerTime = now;
     drag.targetX = event.clientX - drag.offsetX;
     drag.targetY = event.clientY - drag.offsetY;
     updateReactiveNote();
@@ -379,21 +626,11 @@
   });
 
   note.addEventListener("pointerup", () => {
-    note.classList.remove("is-dragging");
-    if (noteFrame) {
-      window.cancelAnimationFrame(noteFrame);
-      noteFrame = null;
-    }
-    drag = null;
+    endDrag(true);
   });
 
   note.addEventListener("pointercancel", () => {
-    note.classList.remove("is-dragging");
-    if (noteFrame) {
-      window.cancelAnimationFrame(noteFrame);
-      noteFrame = null;
-    }
-    drag = null;
+    endDrag(false);
   });
 
   bgInput.addEventListener("change", async () => {
@@ -476,6 +713,16 @@
 
   resetButton.addEventListener("click", resetNote);
 
+  [tiltButton, quickTiltButton].forEach((button) => {
+    if (!button) return;
+    button.addEventListener("click", enableTilt);
+  });
+
+  [tiltCalibrateButton, quickTiltCalibrateButton].forEach((button) => {
+    if (!button) return;
+    button.addEventListener("click", calibrateTilt);
+  });
+
   controlsHotspot.addEventListener("click", showControls);
 
   function handleViewportChange() {
@@ -496,6 +743,7 @@
     });
   }
 
+  updateTiltControls();
   syncAppViewportSize();
   loadState();
   normalizeSavedBackground();
