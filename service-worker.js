@@ -1,4 +1,4 @@
-const cacheName = "penge-trick-v12";
+const cacheName = "penge-trick-v13";
 const assets = [
   "./",
   "index.html",
@@ -6,6 +6,9 @@ const assets = [
   "app.js",
   "manifest.webmanifest",
   "icons/icon.svg",
+  "assets/5kr.png",
+  "assets/50eur-big.png",
+  "assets/50eur-small.png",
   "assets/100kr.png",
   "assets/200kr.png",
   "assets/500kr.png"

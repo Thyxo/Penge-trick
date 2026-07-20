@@ -29,17 +29,23 @@
   const edgeButtons = Array.from(document.querySelectorAll("[data-edge]"));
 
   const noteColors = {
+    "dkk5": ["#8fc9df", "#d9f2ff", "#5f9fbb"],
     "50": ["#704538", "#cda26d", "#64352e"],
     "100": ["#c88765", "#f0cf91", "#8d563f"],
     "200": ["#6f8f75", "#c8d8a1", "#3f654a"],
     "500": ["#526d94", "#b7c8dc", "#314b72"],
-    "1000": ["#8d626f", "#dac0c9", "#68404f"]
+    "1000": ["#8d626f", "#dac0c9", "#68404f"],
+    "eur50Big": ["#b2734c", "#f1d8a5", "#7c4a34"],
+    "eur50Small": ["#9c7b59", "#ece6d8", "#55745e"]
   };
 
   const noteImages = {
+    "dkk5": "assets/5kr.png",
     "100": "assets/100kr.png",
     "200": "assets/200kr.png",
-    "500": "assets/500kr.png"
+    "500": "assets/500kr.png",
+    "eur50Big": "assets/50eur-big.png",
+    "eur50Small": "assets/50eur-small.png"
   };
 
   const state = {
