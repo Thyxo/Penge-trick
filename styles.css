@@ -15,6 +15,7 @@
   --safe-right: env(safe-area-inset-right, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
+  --setup-max-height: 75vh;
 }
 
 * {
@@ -174,14 +175,16 @@ input {
 
 .setup-panel {
   position: absolute;
-  z-index: 8;
+  z-index: 12;
   left: max(12px, var(--safe-left));
   right: max(12px, var(--safe-right));
   bottom: max(12px, var(--safe-bottom));
   display: grid;
   gap: 14px;
-  max-height: calc(var(--app-height) - max(24px, var(--safe-top)) - max(24px, var(--safe-bottom)));
+  max-height: min(var(--setup-max-height), calc(var(--app-height) - max(24px, var(--safe-top)) - max(24px, var(--safe-bottom))));
   overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   padding: 16px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -257,12 +260,6 @@ h1 {
   opacity: 1;
   pointer-events: auto;
   transform: translateY(0);
-}
-
-.floating-button.is-on {
-  border-color: transparent;
-  background: var(--accent);
-  color: var(--accent-ink);
 }
 
 .file-card {
@@ -374,8 +371,13 @@ select {
   cursor: pointer;
 }
 
-.tilt-action:disabled,
-.floating-button:disabled {
+.tilt-action[aria-pressed="true"] {
+  border-color: rgba(251, 113, 133, 0.5);
+  background: rgba(251, 113, 133, 0.18);
+  color: var(--ink);
+}
+
+.tilt-action:disabled {
   opacity: 0.45;
   cursor: default;
 }

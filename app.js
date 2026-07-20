@@ -14,8 +14,6 @@
   const resetButton = document.getElementById("resetButton");
   const tiltButton = document.getElementById("tiltButton");
   const tiltCalibrateButton = document.getElementById("tiltCalibrateButton");
-  const quickTiltButton = document.getElementById("quickTiltButton");
-  const quickTiltCalibrateButton = document.getElementById("quickTiltCalibrateButton");
   const tiltStatus = document.getElementById("tiltStatus");
   const bgInput = document.getElementById("bgInput");
   const denomination = document.getElementById("denomination");
@@ -124,6 +122,7 @@
     const size = appViewportSize();
     document.documentElement.style.setProperty("--app-width", `${size.cssWidth}px`);
     document.documentElement.style.setProperty("--app-height", `${size.cssHeight}px`);
+    document.documentElement.style.setProperty("--setup-max-height", `${Math.round(size.cssHeight * 0.75)}px`);
   }
 
   function clamp(value, min, max) {
@@ -282,13 +281,12 @@
   }
 
   function updateTiltControls() {
-    if (tiltButton) tiltButton.textContent = tilt.enabled ? "Tilt aktiv" : "Aktiver tilt";
-    if (quickTiltButton) {
-      quickTiltButton.classList.toggle("is-on", tilt.enabled);
-      quickTiltButton.setAttribute("aria-label", tilt.enabled ? "Tilt aktiv" : "Aktiver tilt");
+    if (tiltButton) {
+      tiltButton.textContent = tilt.enabled ? "Slaa tilt fra" : "Slaa tilt til";
+      tiltButton.setAttribute("aria-pressed", String(tilt.enabled));
     }
 
-    [tiltCalibrateButton, quickTiltCalibrateButton].forEach((button) => {
+    [tiltCalibrateButton].forEach((button) => {
       if (!button) return;
       button.disabled = !tilt.enabled || !tilt.hasReading;
     });
@@ -349,6 +347,34 @@
       setTiltStatus("Tilt kunne ikke aktiveres i denne browser.");
       updateTiltControls();
     }
+  }
+
+  function disableTilt() {
+    if (!tilt.enabled) return;
+
+    window.removeEventListener("deviceorientation", handleDeviceOrientation, true);
+    tilt.enabled = false;
+    tilt.hasReading = false;
+    tilt.vx = 0;
+    tilt.vy = 0;
+    tilt.lastTime = null;
+
+    if (tiltFrame) {
+      window.cancelAnimationFrame(tiltFrame);
+      tiltFrame = null;
+    }
+
+    setTiltStatus("Tilt er slaaet fra.");
+    updateTiltControls();
+  }
+
+  function toggleTilt() {
+    if (tilt.enabled) {
+      disableTilt();
+      return;
+    }
+
+    enableTilt();
   }
 
   function calibrateTilt() {
@@ -704,7 +730,8 @@
 
   settingsButton.addEventListener("click", () => {
     setupPanel.classList.remove("is-collapsed");
-    showControls();
+    floatingControls.classList.remove("is-visible");
+    window.clearTimeout(controlsTimer);
   });
 
   closeSetup.addEventListener("click", () => {
@@ -713,15 +740,9 @@
 
   resetButton.addEventListener("click", resetNote);
 
-  [tiltButton, quickTiltButton].forEach((button) => {
-    if (!button) return;
-    button.addEventListener("click", enableTilt);
-  });
+  tiltButton.addEventListener("click", toggleTilt);
 
-  [tiltCalibrateButton, quickTiltCalibrateButton].forEach((button) => {
-    if (!button) return;
-    button.addEventListener("click", calibrateTilt);
-  });
+  tiltCalibrateButton.addEventListener("click", calibrateTilt);
 
   controlsHotspot.addEventListener("click", showControls);
 
