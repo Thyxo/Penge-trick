@@ -201,10 +201,18 @@ input {
 }
 
 .setup-header {
+  position: sticky;
+  z-index: 1;
+  top: -16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  margin: -16px -16px 0;
+  padding: 16px;
+  background: var(--panel-strong);
+  border-bottom: 1px solid var(--line);
+  backdrop-filter: blur(20px);
 }
 
 h1 {

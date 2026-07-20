@@ -282,7 +282,7 @@
 
   function updateTiltControls() {
     if (tiltButton) {
-      tiltButton.textContent = tilt.enabled ? "Slaa tilt fra" : "Slaa tilt til";
+      tiltButton.textContent = tilt.enabled ? "Slå tilt fra" : "Slå tilt til";
       tiltButton.setAttribute("aria-pressed", String(tilt.enabled));
     }
 
@@ -301,7 +301,7 @@
     if (!tilt.hasReading) {
       tilt.baseBeta = tilt.beta;
       tilt.baseGamma = tilt.gamma;
-      setTiltStatus("Tilt aktiv. Nulpunktet er sat efter den nuvaerende vinkel.");
+      setTiltStatus("Tilt aktiv. Nulpunktet er sat efter den nuværende vinkel.");
     }
 
     tilt.hasReading = true;
@@ -310,18 +310,18 @@
 
   async function enableTilt() {
     if (tilt.enabled) {
-      setTiltStatus(tilt.hasReading ? "Tilt er allerede aktiv." : "Tilt venter paa sensor-data.");
+      setTiltStatus(tilt.hasReading ? "Tilt er allerede aktiv." : "Tilt venter på sensor-data.");
       return;
     }
 
     if (typeof window.DeviceOrientationEvent === "undefined") {
-      setTiltStatus("Denne browser tilbyder ikke bevaegelsessensorer.");
+      setTiltStatus("Denne browser tilbyder ikke bevægelsessensorer.");
       updateTiltControls();
       return;
     }
 
     if (!window.isSecureContext && window.location.hostname !== "localhost") {
-      setTiltStatus("Tilt kraever HTTPS paa telefonen.");
+      setTiltStatus("Tilt kræver HTTPS på telefonen.");
       updateTiltControls();
       return;
     }
@@ -340,7 +340,7 @@
       tilt.enabled = true;
       tilt.hasReading = false;
       tilt.lastTime = null;
-      setTiltStatus("Tilt aktiv. Hold telefonen roligt et oejeblik.");
+      setTiltStatus("Tilt aktiv. Hold telefonen roligt et øjeblik.");
       updateTiltControls();
       startTiltLoop();
     } catch (error) {
@@ -364,7 +364,7 @@
       tiltFrame = null;
     }
 
-    setTiltStatus("Tilt er slaaet fra.");
+    setTiltStatus("Tilt er slået fra.");
     updateTiltControls();
   }
 
@@ -384,7 +384,7 @@
     }
 
     if (!tilt.hasReading) {
-      setTiltStatus("Venter paa sensor-data foer nulstilling.");
+      setTiltStatus("Venter på sensor-data før nulstilling.");
       return;
     }
 
