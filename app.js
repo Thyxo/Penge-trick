@@ -94,7 +94,7 @@
     hidden: false,
     awaitingReveal: false,
     shakeReveal: false,
-    shakeStrength: 85,
+    shakeStrength: 220,
     routineShakeNext: false,
     activeTab: "single",
     routineQueue: [],
@@ -111,14 +111,22 @@
   let shakeMotionReady = false;
   let shakeOrientationReady = false;
   let shakeLastMagnitude = null;
+  let shakeLastVector = null;
   let shakeLastOrientation = null;
   let shakeLastReveal = 0;
+  let shakeLastHit = 0;
+  let shakeHitCount = 0;
+  let shakeArmTime = 0;
 
   const shake = {
-    motionDeltaThreshold: 8,
-    motionMagnitudeThreshold: 19,
-    orientationDeltaThreshold: 16,
-    orientationRateThreshold: 135,
+    motionAccelerationThreshold: 9,
+    motionDeltaThreshold: 7,
+    motionMagnitudeThreshold: 13,
+    orientationDeltaThreshold: 12,
+    orientationRateThreshold: 220,
+    requiredHits: 2,
+    hitWindow: 650,
+    armDelay: 350,
     cooldown: 900
   };
 
@@ -180,6 +188,15 @@
     return Math.min(max, Math.max(min, value));
   }
 
+  function normalizeShakeStrength(value) {
+    const strength = Number(value);
+    if (!Number.isFinite(strength)) return 220;
+    if (strength < 140) {
+      return Math.round(140 + (clamp(strength, 40, 130) - 40) * 2);
+    }
+    return clamp(strength, 140, 320);
+  }
+
   function loadState() {
     try {
       const saved = JSON.parse(localStorage.getItem(storageKey) || "{}");
@@ -189,7 +206,7 @@
       state.routineQueue = state.routineQueue.filter((value) => denominationLabels[value]);
       state.routineIndex = clamp(Number(state.routineIndex) || 0, 0, Math.max(0, state.routineQueue.length - 1));
       state.activeTab = state.activeTab === "routine" ? "routine" : "single";
-      state.shakeStrength = clamp(Number(state.shakeStrength) || 85, 40, 130);
+      state.shakeStrength = normalizeShakeStrength(state.shakeStrength);
       state.awaitingReveal = hadAwaitingReveal ? Boolean(state.awaitingReveal) : Boolean(state.shakeReveal);
     } catch (error) {
       localStorage.removeItem(storageKey);
@@ -333,12 +350,22 @@
   }
 
   function shakeStrengthFactor() {
-    return clamp(Number(state.shakeStrength) || 85, 40, 130) / 60;
+    return normalizeShakeStrength(state.shakeStrength) / 100;
+  }
+
+  function resetShakeSampling() {
+    shakeLastMagnitude = null;
+    shakeLastVector = null;
+    shakeLastOrientation = null;
+    shakeLastHit = 0;
+    shakeHitCount = 0;
+    shakeArmTime = performance.now() + shake.armDelay;
   }
 
   function hideNoteUntilReveal(promptForPermission = true) {
     state.hidden = true;
     state.awaitingReveal = true;
+    resetShakeSampling();
     note.classList.add("is-hidden");
     tilt.vx = 0;
     tilt.vy = 0;
@@ -401,7 +428,7 @@
       }
     }
 
-    if (supportsOrientation && !shakeOrientationReady) {
+    if (!shakeMotionReady && supportsOrientation && !shakeOrientationReady) {
       const allowed = promptForPermission ? await requestSensorAccess(window.DeviceOrientationEvent) : true;
       if (allowed) {
         window.addEventListener("deviceorientation", handleShakeOrientation, true);
@@ -423,6 +450,7 @@
     if (!state.hidden || !state.awaitingReveal || !needsShakeForCurrentNote()) return;
 
     const now = performance.now();
+    if (now < shakeArmTime) return;
     if (now - shakeLastReveal < shake.cooldown) return;
     shakeLastReveal = now;
     revealNote(true);
@@ -430,27 +458,60 @@
     saveState();
   }
 
+  function recordShakeHit(now) {
+    if (now < shakeArmTime) return;
+    if (now - shakeLastHit > shake.hitWindow) shakeHitCount = 0;
+
+    shakeLastHit = now;
+    shakeHitCount += 1;
+
+    if (shakeHitCount >= shake.requiredHits) {
+      shakeHitCount = 0;
+      triggerShakeReveal();
+    }
+  }
+
   function handleDeviceMotion(event) {
-    const acceleration = event.accelerationIncludingGravity || event.acceleration;
+    const dynamicAcceleration = event.acceleration;
+    const fallbackAcceleration = event.accelerationIncludingGravity;
+    const hasDynamicAcceleration = dynamicAcceleration && (
+      Number(dynamicAcceleration.x) ||
+      Number(dynamicAcceleration.y) ||
+      Number(dynamicAcceleration.z)
+    );
+    const acceleration = hasDynamicAcceleration ? dynamicAcceleration : fallbackAcceleration;
     if (!acceleration) return;
 
     const x = Number(acceleration.x) || 0;
     const y = Number(acceleration.y) || 0;
     const z = Number(acceleration.z) || 0;
     const magnitude = Math.hypot(x, y, z);
+    const factor = shakeStrengthFactor();
+    const now = performance.now();
 
-    if (shakeLastMagnitude === null) {
-      shakeLastMagnitude = magnitude;
+    if (hasDynamicAcceleration) {
+      if (magnitude < shake.motionAccelerationThreshold * factor) return;
+      recordShakeHit(now);
       return;
     }
 
-    const delta = Math.abs(magnitude - shakeLastMagnitude);
+    if (shakeLastMagnitude === null || !shakeLastVector) {
+      shakeLastMagnitude = magnitude;
+      shakeLastVector = { x, y, z };
+      return;
+    }
+
+    const delta = Math.hypot(
+      x - shakeLastVector.x,
+      y - shakeLastVector.y,
+      z - shakeLastVector.z
+    );
     shakeLastMagnitude = magnitude;
+    shakeLastVector = { x, y, z };
 
-    const factor = shakeStrengthFactor();
-    if (delta < shake.motionDeltaThreshold * factor && magnitude < shake.motionMagnitudeThreshold * factor) return;
+    if (delta < shake.motionDeltaThreshold * factor || magnitude < shake.motionMagnitudeThreshold * factor) return;
 
-    triggerShakeReveal();
+    recordShakeHit(now);
   }
 
   function handleShakeOrientation(event) {
@@ -479,9 +540,9 @@
     };
 
     const factor = shakeStrengthFactor();
-    if (delta < shake.orientationDeltaThreshold * factor && rate < shake.orientationRateThreshold * factor) return;
+    if (delta < shake.orientationDeltaThreshold * factor || rate < shake.orientationRateThreshold * factor) return;
 
-    triggerShakeReveal();
+    recordShakeHit(now);
   }
 
   function syncRoutineStatus() {
@@ -1228,7 +1289,8 @@
   });
 
   shakeStrengthRange.addEventListener("input", () => {
-    state.shakeStrength = Number(shakeStrengthRange.value);
+    state.shakeStrength = normalizeShakeStrength(shakeStrengthRange.value);
+    shakeStrengthRange.value = String(state.shakeStrength);
     shakeStrengthOutput.textContent = `${state.shakeStrength}%`;
     saveState();
   });
