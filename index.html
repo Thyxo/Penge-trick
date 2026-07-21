@@ -37,20 +37,72 @@
         </label>
         <input id="bgInput" class="sr-only" type="file" accept="image/*">
 
-        <label class="field">
-          <span>Valør</span>
-          <select id="denomination">
-            <option value="dkk5">5 kr</option>
-            <option value="dkk20">20 kr</option>
-            <option value="50">50 kr</option>
-            <option value="100" selected>100 kr</option>
-            <option value="200">200 kr</option>
-            <option value="500">500 kr</option>
-            <option value="1000">1000 kr</option>
-            <option value="eur50Big">50 euro stor</option>
-            <option value="eur50Small">50 euro lille</option>
-          </select>
-        </label>
+        <div class="setup-tabs" role="tablist" aria-label="Opsætningstype">
+          <button id="singleTabButton" type="button" role="tab" aria-controls="singleTab" aria-selected="true">Valør</button>
+          <button id="routineTabButton" type="button" role="tab" aria-controls="routineTab" aria-selected="false">Rutine</button>
+        </div>
+
+        <div class="tab-panel" id="singleTab" role="tabpanel" aria-labelledby="singleTabButton">
+          <label class="field">
+            <span>Valør</span>
+            <select id="denomination">
+              <option value="dkk5">5 kr</option>
+              <option value="dkk20">20 kr</option>
+              <option value="50">50 kr</option>
+              <option value="100" selected>100 kr</option>
+              <option value="200">200 kr</option>
+              <option value="500">500 kr</option>
+              <option value="1000">1000 kr</option>
+              <option value="eur50Big">50 euro stor</option>
+              <option value="eur50Small">50 euro lille</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="tab-panel" id="routineTab" role="tabpanel" aria-labelledby="routineTabButton" hidden>
+          <div class="routine-builder">
+            <label class="field">
+              <span>Tilføj til rutine</span>
+              <select id="routineDenomination">
+                <option value="dkk5">5 kr</option>
+                <option value="dkk20">20 kr</option>
+                <option value="50">50 kr</option>
+                <option value="100" selected>100 kr</option>
+                <option value="200">200 kr</option>
+                <option value="500">500 kr</option>
+                <option value="1000">1000 kr</option>
+                <option value="eur50Big">50 euro stor</option>
+                <option value="eur50Small">50 euro lille</option>
+              </select>
+            </label>
+            <button class="secondary-action" id="addRoutineItem" type="button">Tilføj</button>
+          </div>
+
+          <ol class="routine-list" id="routineList" aria-label="Rutinekø"></ol>
+
+          <div class="routine-actions">
+            <button class="tilt-action" id="startRoutineButton" type="button">Start rutine</button>
+            <button class="tilt-action" id="resetRoutineButton" type="button">Nulstil rutine</button>
+          </div>
+          <small class="tilt-status" id="routineStatus">Rutinen er tom.</small>
+        </div>
+
+        <div class="reveal-panel" aria-label="Fremkomst">
+          <label class="switch-row">
+            <span>
+              <strong>Shake-to-reveal</strong>
+              <small>Start skjult og tryl sedlen frem med et ryst.</small>
+            </span>
+            <input id="shakeRevealToggle" type="checkbox">
+          </label>
+          <label class="switch-row">
+            <span>
+              <strong>Næste i rutinen kræver shake</strong>
+              <small>Ellers dukker næste element op automatisk.</small>
+            </span>
+            <input id="routineShakeNextToggle" type="checkbox">
+          </label>
+        </div>
 
         <label class="range-field">
           <span>Baggrund X <output id="bgXOutput">0</output></span>

@@ -17,6 +17,18 @@
   const tiltStatus = document.getElementById("tiltStatus");
   const bgInput = document.getElementById("bgInput");
   const denomination = document.getElementById("denomination");
+  const singleTabButton = document.getElementById("singleTabButton");
+  const routineTabButton = document.getElementById("routineTabButton");
+  const singleTab = document.getElementById("singleTab");
+  const routineTab = document.getElementById("routineTab");
+  const shakeRevealToggle = document.getElementById("shakeRevealToggle");
+  const routineShakeNextToggle = document.getElementById("routineShakeNextToggle");
+  const routineDenomination = document.getElementById("routineDenomination");
+  const addRoutineItem = document.getElementById("addRoutineItem");
+  const routineList = document.getElementById("routineList");
+  const startRoutineButton = document.getElementById("startRoutineButton");
+  const resetRoutineButton = document.getElementById("resetRoutineButton");
+  const routineStatus = document.getElementById("routineStatus");
   const bgXRange = document.getElementById("bgXRange");
   const bgXOutput = document.getElementById("bgXOutput");
   const bgYRange = document.getElementById("bgYRange");
@@ -53,6 +65,18 @@
     "eur50Small": "assets/50eur-small.png"
   };
 
+  const denominationLabels = {
+    "dkk5": "5 kr",
+    "dkk20": "20 kr",
+    "50": "50 kr",
+    "100": "100 kr",
+    "200": "200 kr",
+    "500": "500 kr",
+    "1000": "1000 kr",
+    "eur50Big": "50 euro stor",
+    "eur50Small": "50 euro lille"
+  };
+
   const state = {
     bg: "",
     denom: "100",
@@ -65,13 +89,28 @@
     rotation: -7,
     x: 0,
     y: 0,
-    hidden: false
+    hidden: false,
+    shakeReveal: false,
+    routineShakeNext: false,
+    activeTab: "single",
+    routineQueue: [],
+    routineIndex: 0,
+    routineActive: false,
+    routineComplete: false
   };
 
   let drag = null;
   let controlsTimer = null;
   let noteFrame = null;
   let tiltFrame = null;
+  let shakeReady = false;
+  let shakeLastMagnitude = null;
+  let shakeLastReveal = 0;
+
+  const shake = {
+    threshold: 17,
+    cooldown: 900
+  };
 
   const tilt = {
     enabled: false,
@@ -135,6 +174,10 @@
     try {
       const saved = JSON.parse(localStorage.getItem(storageKey) || "{}");
       Object.assign(state, saved);
+      if (!Array.isArray(state.routineQueue)) state.routineQueue = [];
+      state.routineQueue = state.routineQueue.filter((value) => denominationLabels[value]);
+      state.routineIndex = clamp(Number(state.routineIndex) || 0, 0, Math.max(0, state.routineQueue.length - 1));
+      state.activeTab = state.activeTab === "routine" ? "routine" : "single";
     } catch (error) {
       localStorage.removeItem(storageKey);
     }
@@ -151,7 +194,14 @@
         bgScale: state.bgScale,
         sensitivity: state.sensitivity,
         size: state.size,
-        rotation: state.rotation
+        rotation: state.rotation,
+        shakeReveal: state.shakeReveal,
+        routineShakeNext: state.routineShakeNext,
+        activeTab: state.activeTab,
+        routineQueue: state.routineQueue,
+        routineIndex: state.routineIndex,
+        routineActive: state.routineActive,
+        routineComplete: state.routineComplete
       }));
     } catch (error) {
       // Large photos can exceed localStorage on iOS; keep the current illusion running.
@@ -204,6 +254,9 @@
     }
 
     denomination.value = state.denom;
+    if (routineDenomination) routineDenomination.value = state.denom;
+    if (shakeRevealToggle) shakeRevealToggle.checked = Boolean(state.shakeReveal);
+    if (routineShakeNextToggle) routineShakeNextToggle.checked = Boolean(state.routineShakeNext);
     bgXRange.value = String(state.bgX);
     bgYRange.value = String(state.bgY);
     bgScaleRange.value = String(state.bgScale);
@@ -218,6 +271,8 @@
     rotationOutput.textContent = `${state.rotation} deg`;
     note.src = noteImages[state.denom] || foldedNoteSvg(state.denom);
     note.classList.toggle("is-hidden", state.hidden);
+    setActiveTab(state.activeTab || "single");
+    renderRoutineList();
 
     edgeButtons.forEach((button) => {
       button.setAttribute("aria-pressed", String(button.dataset.edge === state.edge));
@@ -231,6 +286,291 @@
     homeBg.style.transform = `translate3d(${state.bgX}px, ${state.bgY}px, 0) scale(${state.bgScale / 100})`;
   }
 
+  function denominationLabel(value) {
+    return denominationLabels[value] || `${value} kr`;
+  }
+
+  function setActiveTab(tab) {
+    const nextTab = tab === "routine" ? "routine" : "single";
+    state.activeTab = nextTab;
+    if (!singleTabButton || !routineTabButton || !singleTab || !routineTab) return;
+
+    const isRoutine = nextTab === "routine";
+    singleTabButton.setAttribute("aria-selected", String(!isRoutine));
+    routineTabButton.setAttribute("aria-selected", String(isRoutine));
+    singleTab.hidden = isRoutine;
+    routineTab.hidden = !isRoutine;
+  }
+
+  function setNoteDenomination(value) {
+    if (!denominationLabels[value]) return;
+    state.denom = value;
+    denomination.value = value;
+    if (routineDenomination) routineDenomination.value = value;
+    note.src = noteImages[state.denom] || foldedNoteSvg(state.denom);
+  }
+
+  function needsShakeForCurrentNote() {
+    if (state.routineActive) return Boolean(state.routineShakeNext);
+    return Boolean(state.shakeReveal);
+  }
+
+  function hideNoteUntilReveal(promptForPermission = true) {
+    state.hidden = true;
+    note.classList.add("is-hidden");
+    tilt.vx = 0;
+    tilt.vy = 0;
+    ensureShakeListener(promptForPermission);
+  }
+
+  function revealNote(pop) {
+    if (!state.hidden) return;
+
+    state.hidden = false;
+    note.classList.remove("is-hidden");
+    if (!state.x && !state.y) defaultPosition();
+    moveNote(state.x, state.y);
+
+    if (pop) {
+      note.classList.remove("is-revealing");
+      void note.offsetWidth;
+      note.classList.add("is-revealing");
+    }
+  }
+
+  async function requestMotionAccess() {
+    if (typeof window.DeviceMotionEvent === "undefined") return false;
+
+    try {
+      if (typeof window.DeviceMotionEvent.requestPermission === "function") {
+        const permission = await window.DeviceMotionEvent.requestPermission();
+        return permission === "granted";
+      }
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  async function ensureShakeListener(promptForPermission = false) {
+    if (shakeReady) return true;
+    if (typeof window.DeviceMotionEvent === "undefined") {
+      if (routineStatus) routineStatus.textContent = "Shake virker ikke i denne browser.";
+      return false;
+    }
+
+    if (!window.isSecureContext && window.location.hostname !== "localhost") {
+      if (routineStatus) routineStatus.textContent = "Shake kraever HTTPS paa telefonen.";
+      return false;
+    }
+
+    if (typeof window.DeviceMotionEvent.requestPermission === "function" && !promptForPermission) {
+      if (routineStatus) routineStatus.textContent = "Aabn indstillinger og tryk shake til for sensoradgang.";
+      return false;
+    }
+
+    const allowed = await requestMotionAccess();
+    if (!allowed) {
+      if (routineStatus) routineStatus.textContent = "Bevaegelsessensor blev ikke tilladt.";
+      return false;
+    }
+
+    window.addEventListener("devicemotion", handleDeviceMotion, true);
+    shakeReady = true;
+    return true;
+  }
+
+  function handleDeviceMotion(event) {
+    const acceleration = event.accelerationIncludingGravity || event.acceleration;
+    if (!acceleration) return;
+
+    const x = Number(acceleration.x) || 0;
+    const y = Number(acceleration.y) || 0;
+    const z = Number(acceleration.z) || 0;
+    const magnitude = Math.hypot(x, y, z);
+
+    if (shakeLastMagnitude === null) {
+      shakeLastMagnitude = magnitude;
+      return;
+    }
+
+    const delta = Math.abs(magnitude - shakeLastMagnitude);
+    shakeLastMagnitude = magnitude;
+
+    if (delta < shake.threshold || !state.hidden || !needsShakeForCurrentNote()) return;
+
+    const now = performance.now();
+    if (now - shakeLastReveal < shake.cooldown) return;
+    shakeLastReveal = now;
+    revealNote(true);
+    syncRoutineStatus();
+  }
+
+  function syncRoutineStatus() {
+    if (!routineStatus) return;
+
+    if (!state.routineQueue.length) {
+      routineStatus.textContent = "Rutinen er tom.";
+      return;
+    }
+
+    if (state.routineComplete) {
+      routineStatus.textContent = "Rutinen er faerdig.";
+      return;
+    }
+
+    if (!state.routineActive) {
+      routineStatus.textContent = `Klar: ${state.routineQueue.length} elementer i koeen.`;
+      return;
+    }
+
+    const current = state.routineQueue[state.routineIndex];
+    const revealText = state.hidden ? "Venter paa shake." : "Synlig nu.";
+    routineStatus.textContent = `Op naeste: ${denominationLabel(current)}. ${revealText}`;
+  }
+
+  function renderRoutineList() {
+    if (!routineList) return;
+
+    routineList.replaceChildren();
+    state.routineQueue.forEach((value, index) => {
+      const item = document.createElement("li");
+      item.className = "routine-item";
+      item.classList.toggle("is-current", state.routineActive && !state.routineComplete && index === state.routineIndex);
+
+      const label = document.createElement("span");
+      label.textContent = `${denominationLabel(value)}${item.classList.contains("is-current") ? " - op naeste" : ""}`;
+
+      const actions = document.createElement("span");
+      actions.className = "routine-item-actions";
+
+      const up = document.createElement("button");
+      up.className = "routine-icon";
+      up.type = "button";
+      up.textContent = "^";
+      up.setAttribute("aria-label", "Flyt op");
+      up.disabled = index === 0;
+      up.addEventListener("click", () => moveRoutineItem(index, -1));
+
+      const down = document.createElement("button");
+      down.className = "routine-icon";
+      down.type = "button";
+      down.textContent = "v";
+      down.setAttribute("aria-label", "Flyt ned");
+      down.disabled = index === state.routineQueue.length - 1;
+      down.addEventListener("click", () => moveRoutineItem(index, 1));
+
+      const remove = document.createElement("button");
+      remove.className = "routine-icon";
+      remove.type = "button";
+      remove.textContent = "x";
+      remove.setAttribute("aria-label", "Fjern");
+      remove.addEventListener("click", () => removeRoutineItem(index));
+
+      actions.append(up, down, remove);
+      item.append(label, actions);
+      routineList.append(item);
+    });
+
+    syncRoutineStatus();
+  }
+
+  function addRoutineQueueItem() {
+    const value = routineDenomination ? routineDenomination.value : state.denom;
+    if (!denominationLabels[value]) return;
+    state.routineQueue.push(value);
+    state.routineComplete = false;
+    if (!state.routineActive) state.routineIndex = 0;
+    renderRoutineList();
+    saveState();
+  }
+
+  function moveRoutineItem(index, direction) {
+    const nextIndex = index + direction;
+    if (nextIndex < 0 || nextIndex >= state.routineQueue.length) return;
+
+    const [item] = state.routineQueue.splice(index, 1);
+    state.routineQueue.splice(nextIndex, 0, item);
+    if (state.routineActive) {
+      if (state.routineIndex === index) state.routineIndex = nextIndex;
+      else if (state.routineIndex === nextIndex) state.routineIndex = index;
+    }
+    renderRoutineList();
+    saveState();
+  }
+
+  function removeRoutineItem(index) {
+    state.routineQueue.splice(index, 1);
+    if (state.routineIndex >= state.routineQueue.length) {
+      state.routineIndex = Math.max(0, state.routineQueue.length - 1);
+    }
+    if (!state.routineQueue.length) {
+      state.routineActive = false;
+      state.routineComplete = false;
+    }
+    renderRoutineList();
+    saveState();
+  }
+
+  function prepareCurrentRoutineItem() {
+    const value = state.routineQueue[state.routineIndex];
+    if (!value) return;
+
+    setNoteDenomination(value);
+    defaultPosition();
+    moveNote(state.x, state.y);
+
+    if (state.routineShakeNext) {
+      hideNoteUntilReveal();
+    } else {
+      state.hidden = true;
+      note.classList.add("is-hidden");
+      revealNote(true);
+    }
+
+    renderRoutineList();
+    saveState();
+  }
+
+  function startRoutine() {
+    if (!state.routineQueue.length) {
+      syncRoutineStatus();
+      return;
+    }
+
+    state.routineActive = true;
+    state.routineComplete = false;
+    state.routineIndex = clamp(state.routineIndex, 0, state.routineQueue.length - 1);
+    setActiveTab("routine");
+    prepareCurrentRoutineItem();
+  }
+
+  function resetRoutine() {
+    state.routineIndex = 0;
+    state.routineActive = false;
+    state.routineComplete = false;
+    renderRoutineList();
+    saveState();
+  }
+
+  function advanceRoutineAfterUse() {
+    if (!state.routineActive) return false;
+
+    state.routineIndex += 1;
+    if (state.routineIndex >= state.routineQueue.length) {
+      state.routineActive = false;
+      state.routineComplete = true;
+      state.hidden = true;
+      note.classList.add("is-hidden");
+      renderRoutineList();
+      saveState();
+      return true;
+    }
+
+    prepareCurrentRoutineItem();
+    return true;
+  }
+
   function defaultPosition() {
     const rect = stage.getBoundingClientRect();
     const noteRect = note.getBoundingClientRect();
@@ -241,6 +581,10 @@
   function moveNote(x, y) {
     state.x = x;
     state.y = y;
+    note.style.setProperty("--note-x", `${x}px`);
+    note.style.setProperty("--note-y", `${y}px`);
+    note.style.setProperty("--note-rotation", `${state.rotation}deg`);
+    note.style.setProperty("--note-scale", String(state.size / 100));
     note.style.transform = `translate3d(${x}px, ${y}px, 0) rotate(${state.rotation}deg) scale(${state.size / 100})`;
   }
 
@@ -497,12 +841,20 @@
   }
 
   function resetNote() {
-    state.hidden = false;
     tilt.vx = 0;
     tilt.vy = 0;
-    note.classList.remove("is-hidden");
+    state.routineActive = false;
+    state.routineComplete = false;
     defaultPosition();
     moveNote(state.x, state.y);
+    if (state.shakeReveal) {
+      hideNoteUntilReveal();
+    } else {
+      state.hidden = false;
+      note.classList.remove("is-hidden");
+    }
+    renderRoutineList();
+    saveState();
   }
 
   function crossedExitEdge(rect) {
@@ -535,6 +887,7 @@
       noteFrame = null;
     }
     drag = null;
+    advanceRoutineAfterUse();
   }
 
   function endDrag(inheritVelocity) {
@@ -638,6 +991,10 @@
     event.preventDefault();
   });
 
+  note.addEventListener("animationend", () => {
+    note.classList.remove("is-revealing");
+  });
+
   note.addEventListener("pointermove", (event) => {
     if (!drag || drag.pointerId !== event.pointerId) return;
     const now = performance.now();
@@ -676,8 +1033,16 @@
   });
 
   denomination.addEventListener("change", () => {
-    state.denom = denomination.value;
-    note.src = noteImages[state.denom] || foldedNoteSvg(state.denom);
+    state.routineActive = false;
+    state.routineComplete = false;
+    setNoteDenomination(denomination.value);
+    if (state.shakeReveal) {
+      hideNoteUntilReveal();
+    } else {
+      state.hidden = false;
+      note.classList.remove("is-hidden");
+    }
+    renderRoutineList();
     saveState();
   });
 
@@ -730,6 +1095,45 @@
     });
   });
 
+  singleTabButton.addEventListener("click", () => {
+    setActiveTab("single");
+    saveState();
+  });
+
+  routineTabButton.addEventListener("click", () => {
+    setActiveTab("routine");
+    saveState();
+  });
+
+  shakeRevealToggle.addEventListener("change", () => {
+    state.shakeReveal = shakeRevealToggle.checked;
+    state.routineActive = false;
+    state.routineComplete = false;
+    if (state.shakeReveal) {
+      hideNoteUntilReveal();
+    } else {
+      revealNote(true);
+    }
+    renderRoutineList();
+    saveState();
+  });
+
+  routineShakeNextToggle.addEventListener("change", () => {
+    state.routineShakeNext = routineShakeNextToggle.checked;
+    if (state.routineActive) {
+      if (state.routineShakeNext) hideNoteUntilReveal();
+      else revealNote(true);
+    }
+    renderRoutineList();
+    saveState();
+  });
+
+  addRoutineItem.addEventListener("click", addRoutineQueueItem);
+
+  startRoutineButton.addEventListener("click", startRoutine);
+
+  resetRoutineButton.addEventListener("click", resetRoutine);
+
   settingsButton.addEventListener("click", () => {
     setupPanel.classList.remove("is-collapsed");
     floatingControls.classList.remove("is-visible");
@@ -769,10 +1173,22 @@
   updateTiltControls();
   syncAppViewportSize();
   loadState();
+  if (state.routineComplete) {
+    state.routineActive = false;
+    state.hidden = true;
+  } else if (state.routineActive && state.routineQueue.length) {
+    state.routineIndex = clamp(state.routineIndex, 0, state.routineQueue.length - 1);
+    state.denom = state.routineQueue[state.routineIndex];
+    state.hidden = Boolean(state.routineShakeNext);
+  } else {
+    state.routineActive = false;
+    state.hidden = Boolean(state.shakeReveal);
+  }
   normalizeSavedBackground();
   note.addEventListener("load", () => {
     if (!state.x && !state.y) defaultPosition();
     applyState();
   }, { once: true });
   applyState();
+  if (state.hidden && needsShakeForCurrentNote()) ensureShakeListener();
 })();
