@@ -104,11 +104,17 @@
   let noteFrame = null;
   let tiltFrame = null;
   let shakeReady = false;
+  let shakeMotionReady = false;
+  let shakeOrientationReady = false;
   let shakeLastMagnitude = null;
+  let shakeLastOrientation = null;
   let shakeLastReveal = 0;
 
   const shake = {
-    threshold: 17,
+    motionDeltaThreshold: 8,
+    motionMagnitudeThreshold: 19,
+    orientationDeltaThreshold: 16,
+    orientationRateThreshold: 135,
     cooldown: 900
   };
 
@@ -338,12 +344,12 @@
     }
   }
 
-  async function requestMotionAccess() {
-    if (typeof window.DeviceMotionEvent === "undefined") return false;
+  async function requestSensorAccess(EventConstructor) {
+    if (typeof EventConstructor === "undefined") return true;
 
     try {
-      if (typeof window.DeviceMotionEvent.requestPermission === "function") {
-        const permission = await window.DeviceMotionEvent.requestPermission();
+      if (typeof EventConstructor.requestPermission === "function") {
+        const permission = await EventConstructor.requestPermission();
         return permission === "granted";
       }
       return true;
@@ -354,7 +360,10 @@
 
   async function ensureShakeListener(promptForPermission = false) {
     if (shakeReady) return true;
-    if (typeof window.DeviceMotionEvent === "undefined") {
+    const supportsMotion = typeof window.DeviceMotionEvent !== "undefined";
+    const supportsOrientation = typeof window.DeviceOrientationEvent !== "undefined";
+
+    if (!supportsMotion && !supportsOrientation) {
       if (routineStatus) routineStatus.textContent = "Shake virker ikke i denne browser.";
       return false;
     }
@@ -364,20 +373,44 @@
       return false;
     }
 
-    if (typeof window.DeviceMotionEvent.requestPermission === "function" && !promptForPermission) {
-      if (routineStatus) routineStatus.textContent = "Aabn indstillinger og tryk shake til for sensoradgang.";
-      return false;
+    let registered = false;
+
+    if (supportsMotion && !shakeMotionReady) {
+      const allowed = promptForPermission ? await requestSensorAccess(window.DeviceMotionEvent) : true;
+      if (allowed) {
+        window.addEventListener("devicemotion", handleDeviceMotion, true);
+        shakeMotionReady = true;
+        registered = true;
+      }
     }
 
-    const allowed = await requestMotionAccess();
-    if (!allowed) {
+    if (supportsOrientation && !shakeOrientationReady) {
+      const allowed = promptForPermission ? await requestSensorAccess(window.DeviceOrientationEvent) : true;
+      if (allowed) {
+        window.addEventListener("deviceorientation", handleShakeOrientation, true);
+        shakeOrientationReady = true;
+        registered = true;
+      }
+    }
+
+    shakeReady = shakeMotionReady || shakeOrientationReady;
+    if (!shakeReady) {
       if (routineStatus) routineStatus.textContent = "Bevaegelsessensor blev ikke tilladt.";
       return false;
     }
 
-    window.addEventListener("devicemotion", handleDeviceMotion, true);
-    shakeReady = true;
-    return true;
+    return registered || shakeReady;
+  }
+
+  function triggerShakeReveal() {
+    if (!state.hidden || !needsShakeForCurrentNote()) return;
+
+    const now = performance.now();
+    if (now - shakeLastReveal < shake.cooldown) return;
+    shakeLastReveal = now;
+    revealNote(true);
+    syncRoutineStatus();
+    saveState();
   }
 
   function handleDeviceMotion(event) {
@@ -397,13 +430,39 @@
     const delta = Math.abs(magnitude - shakeLastMagnitude);
     shakeLastMagnitude = magnitude;
 
-    if (delta < shake.threshold || !state.hidden || !needsShakeForCurrentNote()) return;
+    if (delta < shake.motionDeltaThreshold && magnitude < shake.motionMagnitudeThreshold) return;
+
+    triggerShakeReveal();
+  }
+
+  function handleShakeOrientation(event) {
+    if (typeof event.beta !== "number" || typeof event.gamma !== "number") return;
 
     const now = performance.now();
-    if (now - shakeLastReveal < shake.cooldown) return;
-    shakeLastReveal = now;
-    revealNote(true);
-    syncRoutineStatus();
+    if (!shakeLastOrientation) {
+      shakeLastOrientation = {
+        beta: event.beta,
+        gamma: event.gamma,
+        time: now
+      };
+      return;
+    }
+
+    const elapsed = Math.max(0.016, (now - shakeLastOrientation.time) / 1000);
+    const delta = Math.hypot(
+      event.beta - shakeLastOrientation.beta,
+      event.gamma - shakeLastOrientation.gamma
+    );
+    const rate = delta / elapsed;
+    shakeLastOrientation = {
+      beta: event.beta,
+      gamma: event.gamma,
+      time: now
+    };
+
+    if (delta < shake.orientationDeltaThreshold && rate < shake.orientationRateThreshold) return;
+
+    triggerShakeReveal();
   }
 
   function syncRoutineStatus() {
@@ -517,7 +576,7 @@
     if (!value) return;
 
     setNoteDenomination(value);
-    defaultPosition();
+    centerPosition();
     moveNote(state.x, state.y);
 
     if (state.routineShakeNext) {
@@ -573,9 +632,16 @@
 
   function defaultPosition() {
     const rect = stage.getBoundingClientRect();
-    const noteRect = note.getBoundingClientRect();
-    state.x = Math.max(18, rect.width - noteRect.width - 28);
-    state.y = Math.max(80, rect.height - noteRect.height - 96);
+    const noteSize = notePhysicsSize();
+    state.x = Math.max(18, rect.width - noteSize.width - 28);
+    state.y = Math.max(80, rect.height - noteSize.height - 96);
+  }
+
+  function centerPosition() {
+    const rect = stage.getBoundingClientRect();
+    const noteSize = notePhysicsSize();
+    state.x = Math.max(18, (rect.width - noteSize.width) / 2);
+    state.y = Math.max(80, (rect.height - noteSize.height) / 2);
   }
 
   function moveNote(x, y) {
@@ -743,11 +809,29 @@
   }
 
   function notePhysicsSize() {
+    const wasHidden = note.classList.contains("is-hidden");
+    const previousVisibility = note.style.visibility;
+    if (wasHidden) {
+      note.style.visibility = "hidden";
+      note.classList.remove("is-hidden");
+    }
+
     const scale = state.size / 100;
-    return {
-      width: Math.max(1, note.offsetWidth * scale),
-      height: Math.max(1, note.offsetHeight * scale)
+    const fallbackWidth = Math.min(window.innerWidth * 0.52, 238);
+    const width = note.offsetWidth || fallbackWidth;
+    const heightRatio = note.naturalWidth && note.naturalHeight ? note.naturalHeight / note.naturalWidth : 0.42;
+    const height = note.offsetHeight || width * heightRatio;
+    const size = {
+      width: Math.max(1, width * scale),
+      height: Math.max(1, height * scale)
     };
+
+    if (wasHidden) {
+      note.classList.add("is-hidden");
+      note.style.visibility = previousVisibility;
+    }
+
+    return size;
   }
 
   function bounceTiltAtEdges(nextX, nextY) {
@@ -1138,6 +1222,7 @@
     setupPanel.classList.remove("is-collapsed");
     floatingControls.classList.remove("is-visible");
     window.clearTimeout(controlsTimer);
+    if (state.hidden && needsShakeForCurrentNote()) ensureShakeListener(true);
   });
 
   closeSetup.addEventListener("click", () => {

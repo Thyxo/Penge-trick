@@ -326,6 +326,10 @@ h1 {
   gap: 10px;
 }
 
+.tab-panel[hidden] {
+  display: none;
+}
+
 .reveal-panel,
 .routine-list {
   padding: 12px;
