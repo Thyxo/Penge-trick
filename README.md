@@ -88,18 +88,3 @@ Appen kan bruges direkte her:
 
    ![Udfør tricket](docs/guide/attachments/24701535-1635-4141-A937-2754C63205AF.png)
 
-## Udvikling lokalt
-
-Projektet er en statisk webapp uden build-step. Start den lokale server med:
-
-```bash
-node dev-server.js
-```
-
-Serveren kører som standard på:
-
-```text
-http://127.0.0.1:4173/
-```
-
-Hvis porten skal ændres, kan du sætte `PORT` før serveren startes.
