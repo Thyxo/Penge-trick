@@ -33,6 +33,7 @@
 
   const noteColors = {
     "dkk5": ["#8fc9df", "#d9f2ff", "#5f9fbb"],
+    "dkk20": ["#a99150", "#eadfae", "#695529"],
     "50": ["#704538", "#cda26d", "#64352e"],
     "100": ["#c88765", "#f0cf91", "#8d563f"],
     "200": ["#6f8f75", "#c8d8a1", "#3f654a"],
@@ -44,6 +45,7 @@
 
   const noteImages = {
     "dkk5": "assets/5kr.png",
+    "dkk20": "assets/20kr.png",
     "100": "assets/100kr.png",
     "200": "assets/200kr.png",
     "500": "assets/500kr.png",
