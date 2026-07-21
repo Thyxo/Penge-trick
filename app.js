@@ -22,6 +22,8 @@
   const singleTab = document.getElementById("singleTab");
   const routineTab = document.getElementById("routineTab");
   const shakeRevealToggle = document.getElementById("shakeRevealToggle");
+  const shakeStrengthRange = document.getElementById("shakeStrengthRange");
+  const shakeStrengthOutput = document.getElementById("shakeStrengthOutput");
   const routineShakeNextToggle = document.getElementById("routineShakeNextToggle");
   const routineDenomination = document.getElementById("routineDenomination");
   const addRoutineItem = document.getElementById("addRoutineItem");
@@ -90,7 +92,9 @@
     x: 0,
     y: 0,
     hidden: false,
+    awaitingReveal: false,
     shakeReveal: false,
+    shakeStrength: 85,
     routineShakeNext: false,
     activeTab: "single",
     routineQueue: [],
@@ -179,11 +183,14 @@
   function loadState() {
     try {
       const saved = JSON.parse(localStorage.getItem(storageKey) || "{}");
+      const hadAwaitingReveal = Object.prototype.hasOwnProperty.call(saved, "awaitingReveal");
       Object.assign(state, saved);
       if (!Array.isArray(state.routineQueue)) state.routineQueue = [];
       state.routineQueue = state.routineQueue.filter((value) => denominationLabels[value]);
       state.routineIndex = clamp(Number(state.routineIndex) || 0, 0, Math.max(0, state.routineQueue.length - 1));
       state.activeTab = state.activeTab === "routine" ? "routine" : "single";
+      state.shakeStrength = clamp(Number(state.shakeStrength) || 85, 40, 130);
+      state.awaitingReveal = hadAwaitingReveal ? Boolean(state.awaitingReveal) : Boolean(state.shakeReveal);
     } catch (error) {
       localStorage.removeItem(storageKey);
     }
@@ -201,7 +208,9 @@
         sensitivity: state.sensitivity,
         size: state.size,
         rotation: state.rotation,
+        awaitingReveal: state.awaitingReveal,
         shakeReveal: state.shakeReveal,
+        shakeStrength: state.shakeStrength,
         routineShakeNext: state.routineShakeNext,
         activeTab: state.activeTab,
         routineQueue: state.routineQueue,
@@ -262,6 +271,8 @@
     denomination.value = state.denom;
     if (routineDenomination) routineDenomination.value = state.denom;
     if (shakeRevealToggle) shakeRevealToggle.checked = Boolean(state.shakeReveal);
+    if (shakeStrengthRange) shakeStrengthRange.value = String(state.shakeStrength);
+    if (shakeStrengthOutput) shakeStrengthOutput.textContent = `${state.shakeStrength}%`;
     if (routineShakeNextToggle) routineShakeNextToggle.checked = Boolean(state.routineShakeNext);
     bgXRange.value = String(state.bgX);
     bgYRange.value = String(state.bgY);
@@ -321,8 +332,13 @@
     return Boolean(state.shakeReveal);
   }
 
+  function shakeStrengthFactor() {
+    return clamp(Number(state.shakeStrength) || 85, 40, 130) / 60;
+  }
+
   function hideNoteUntilReveal(promptForPermission = true) {
     state.hidden = true;
+    state.awaitingReveal = true;
     note.classList.add("is-hidden");
     tilt.vx = 0;
     tilt.vy = 0;
@@ -333,6 +349,7 @@
     if (!state.hidden) return;
 
     state.hidden = false;
+    state.awaitingReveal = false;
     note.classList.remove("is-hidden");
     if (!state.x && !state.y) defaultPosition();
     moveNote(state.x, state.y);
@@ -403,7 +420,7 @@
   }
 
   function triggerShakeReveal() {
-    if (!state.hidden || !needsShakeForCurrentNote()) return;
+    if (!state.hidden || !state.awaitingReveal || !needsShakeForCurrentNote()) return;
 
     const now = performance.now();
     if (now - shakeLastReveal < shake.cooldown) return;
@@ -430,7 +447,8 @@
     const delta = Math.abs(magnitude - shakeLastMagnitude);
     shakeLastMagnitude = magnitude;
 
-    if (delta < shake.motionDeltaThreshold && magnitude < shake.motionMagnitudeThreshold) return;
+    const factor = shakeStrengthFactor();
+    if (delta < shake.motionDeltaThreshold * factor && magnitude < shake.motionMagnitudeThreshold * factor) return;
 
     triggerShakeReveal();
   }
@@ -460,7 +478,8 @@
       time: now
     };
 
-    if (delta < shake.orientationDeltaThreshold && rate < shake.orientationRateThreshold) return;
+    const factor = shakeStrengthFactor();
+    if (delta < shake.orientationDeltaThreshold * factor && rate < shake.orientationRateThreshold * factor) return;
 
     triggerShakeReveal();
   }
@@ -608,6 +627,7 @@
     state.routineIndex = 0;
     state.routineActive = false;
     state.routineComplete = false;
+    state.awaitingReveal = false;
     renderRoutineList();
     saveState();
   }
@@ -620,6 +640,7 @@
       state.routineActive = false;
       state.routineComplete = true;
       state.hidden = true;
+      state.awaitingReveal = false;
       note.classList.add("is-hidden");
       renderRoutineList();
       saveState();
@@ -935,6 +956,7 @@
       hideNoteUntilReveal();
     } else {
       state.hidden = false;
+      state.awaitingReveal = false;
       note.classList.remove("is-hidden");
     }
     renderRoutineList();
@@ -956,6 +978,7 @@
 
   function hideAtEdge() {
     state.hidden = true;
+    state.awaitingReveal = false;
     tilt.vx = 0;
     tilt.vy = 0;
     note.classList.add("is-hidden");
@@ -971,7 +994,7 @@
       noteFrame = null;
     }
     drag = null;
-    advanceRoutineAfterUse();
+    if (!advanceRoutineAfterUse()) saveState();
   }
 
   function endDrag(inheritVelocity) {
@@ -1124,6 +1147,7 @@
       hideNoteUntilReveal();
     } else {
       state.hidden = false;
+      state.awaitingReveal = false;
       note.classList.remove("is-hidden");
     }
     renderRoutineList();
@@ -1196,9 +1220,16 @@
     if (state.shakeReveal) {
       hideNoteUntilReveal();
     } else {
+      state.awaitingReveal = false;
       revealNote(true);
     }
     renderRoutineList();
+    saveState();
+  });
+
+  shakeStrengthRange.addEventListener("input", () => {
+    state.shakeStrength = Number(shakeStrengthRange.value);
+    shakeStrengthOutput.textContent = `${state.shakeStrength}%`;
     saveState();
   });
 
@@ -1261,13 +1292,16 @@
   if (state.routineComplete) {
     state.routineActive = false;
     state.hidden = true;
+    state.awaitingReveal = false;
   } else if (state.routineActive && state.routineQueue.length) {
     state.routineIndex = clamp(state.routineIndex, 0, state.routineQueue.length - 1);
     state.denom = state.routineQueue[state.routineIndex];
     state.hidden = Boolean(state.routineShakeNext);
+    state.awaitingReveal = Boolean(state.routineShakeNext && state.awaitingReveal);
   } else {
     state.routineActive = false;
     state.hidden = Boolean(state.shakeReveal);
+    state.awaitingReveal = Boolean(state.shakeReveal && state.awaitingReveal);
   }
   normalizeSavedBackground();
   note.addEventListener("load", () => {

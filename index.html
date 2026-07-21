@@ -85,6 +85,13 @@
             <button class="tilt-action" id="resetRoutineButton" type="button">Nulstil rutine</button>
           </div>
           <small class="tilt-status" id="routineStatus">Rutinen er tom.</small>
+          <label class="switch-row">
+            <span>
+              <strong>Næste i rutinen kræver shake</strong>
+              <small>Ellers dukker næste element op automatisk.</small>
+            </span>
+            <input id="routineShakeNextToggle" type="checkbox">
+          </label>
         </div>
 
         <div class="reveal-panel" aria-label="Fremkomst">
@@ -95,12 +102,11 @@
             </span>
             <input id="shakeRevealToggle" type="checkbox">
           </label>
-          <label class="switch-row">
+          <label class="range-field">
             <span>
-              <strong>Næste i rutinen kræver shake</strong>
-              <small>Ellers dukker næste element op automatisk.</small>
+              Rystestyrke <output id="shakeStrengthOutput">85%</output>
             </span>
-            <input id="routineShakeNextToggle" type="checkbox">
+            <input id="shakeStrengthRange" type="range" min="40" max="130" value="85">
           </label>
         </div>
 
