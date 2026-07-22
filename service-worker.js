@@ -1,4 +1,4 @@
-const cacheName = "penge-trick-v21";
+const cacheName = "penge-trick-v22";
 const assets = [
   "./",
   "index.html",
@@ -8,6 +8,7 @@ const assets = [
   "icons/icon.svg",
   "assets/5kr.png",
   "assets/20kr.png",
+  "assets/20eur-small.png",
   "assets/50eur-big.png",
   "assets/50eur-small.png",
   "assets/100kr.png",

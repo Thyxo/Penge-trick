@@ -53,6 +53,7 @@
     "200": ["#6f8f75", "#c8d8a1", "#3f654a"],
     "500": ["#526d94", "#b7c8dc", "#314b72"],
     "1000": ["#8d626f", "#dac0c9", "#68404f"],
+    "eur20Small": ["#4d9cc2", "#e7edf0", "#2d6f91"],
     "eur50Big": ["#b2734c", "#f1d8a5", "#7c4a34"],
     "eur50Small": ["#9c7b59", "#ece6d8", "#55745e"]
   };
@@ -63,6 +64,7 @@
     "100": "assets/100kr.png",
     "200": "assets/200kr.png",
     "500": "assets/500kr.png",
+    "eur20Small": "assets/20eur-small.png",
     "eur50Big": "assets/50eur-big.png",
     "eur50Small": "assets/50eur-small.png"
   };
@@ -75,6 +77,7 @@
     "200": "200 kr",
     "500": "500 kr",
     "1000": "1000 kr",
+    "eur20Small": "20 euro lille",
     "eur50Big": "50 euro stor",
     "eur50Small": "50 euro lille"
   };
