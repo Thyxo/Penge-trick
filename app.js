@@ -431,7 +431,7 @@
       }
     }
 
-    if (!shakeMotionReady && supportsOrientation && !shakeOrientationReady) {
+    if (supportsOrientation && !shakeOrientationReady) {
       const allowed = promptForPermission ? await requestSensorAccess(window.DeviceOrientationEvent) : true;
       if (allowed) {
         window.addEventListener("deviceorientation", handleShakeOrientation, true);
