@@ -169,6 +169,16 @@
       </div>
 
       <img class="note" id="note" alt="Foldet pengeseddel" draggable="false">
+
+      <div class="motion-gate" id="motionGate" hidden>
+        <div class="motion-card">
+          <strong>Bevægelse og retning</strong>
+          <small>Appen skal bruge adgang til bevægelse og retning for shake og tilt.</small>
+          <button class="primary-action" id="motionAllowButton" type="button">Tillad</button>
+          <button class="link-action" id="motionSkipButton" type="button">Ikke nu</button>
+          <small class="motion-status" id="motionGateStatus"></small>
+        </div>
+      </div>
     </main>
 
     <script src="app.js"></script>

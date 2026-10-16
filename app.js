@@ -44,6 +44,10 @@
   const rotationRange = document.getElementById("rotationRange");
   const rotationOutput = document.getElementById("rotationOutput");
   const edgeButtons = Array.from(document.querySelectorAll("[data-edge]"));
+  const motionGate = document.getElementById("motionGate");
+  const motionAllowButton = document.getElementById("motionAllowButton");
+  const motionSkipButton = document.getElementById("motionSkipButton");
+  const motionGateStatus = document.getElementById("motionGateStatus");
 
   const noteColors = {
     "dkk5": ["#8fc9df", "#d9f2ff", "#5f9fbb"],
@@ -120,6 +124,9 @@
   let shakeLastHit = 0;
   let shakeHitCount = 0;
   let shakeArmTime = 0;
+  let stageRotation = 0;
+  let lastAppSize = "";
+  let motionCheckRunning = false;
 
   const shake = {
     motionAccelerationThreshold: 9,
@@ -154,22 +161,30 @@
     stopSpeed: 2.5
   };
 
+  function isCoarsePointer() {
+    return window.matchMedia("(pointer: coarse)").matches;
+  }
+
   function appViewportSize() {
-    const coarsePointer = window.matchMedia("(pointer: coarse)").matches;
-    const screenWidth = coarsePointer && window.screen ? window.screen.width : 0;
-    const screenHeight = coarsePointer && window.screen ? window.screen.height : 0;
-    const cssWidth = Math.max(
+    const coarsePointer = isCoarsePointer();
+    const screenShort = coarsePointer && window.screen ? Math.min(window.screen.width, window.screen.height) : 0;
+    const screenLong = coarsePointer && window.screen ? Math.max(window.screen.width, window.screen.height) : 0;
+    let viewWidth = Math.max(
       window.innerWidth || 0,
       document.documentElement.clientWidth || 0,
-      window.visualViewport ? window.visualViewport.width : 0,
-      screenWidth
+      window.visualViewport ? window.visualViewport.width : 0
     );
-    const cssHeight = Math.max(
+    let viewHeight = Math.max(
       window.innerHeight || 0,
       document.documentElement.clientHeight || 0,
-      window.visualViewport ? window.visualViewport.height : 0,
-      screenHeight
+      window.visualViewport ? window.visualViewport.height : 0
     );
+    // The app is portrait-only on phones; landscape viewports are counter-rotated.
+    if (coarsePointer && viewWidth > viewHeight) {
+      [viewWidth, viewHeight] = [viewHeight, viewWidth];
+    }
+    const cssWidth = Math.max(viewWidth, screenShort);
+    const cssHeight = Math.max(viewHeight, screenLong);
     const dpr = window.devicePixelRatio || 1;
 
     return {
@@ -185,6 +200,50 @@
     document.documentElement.style.setProperty("--app-width", `${size.cssWidth}px`);
     document.documentElement.style.setProperty("--app-height", `${size.cssHeight}px`);
     document.documentElement.style.setProperty("--setup-max-height", `${Math.round(size.cssHeight * 0.75)}px`);
+    return `${size.cssWidth}x${size.cssHeight}`;
+  }
+
+  function lockPortrait() {
+    try {
+      const orientation = window.screen && window.screen.orientation;
+      if (orientation && typeof orientation.lock === "function") {
+        orientation.lock("portrait").catch(() => {});
+      }
+    } catch (error) {
+      // Not supported (iOS); the CSS counter-rotation below covers it.
+    }
+  }
+
+  function screenAngle() {
+    if (typeof window.orientation === "number") return window.orientation;
+    const orientation = window.screen && window.screen.orientation;
+    return orientation && typeof orientation.angle === "number" ? orientation.angle : 0;
+  }
+
+  function syncOrientationLock() {
+    const landscape = isCoarsePointer() && window.innerWidth > window.innerHeight;
+    const angle = ((screenAngle() % 360) + 360) % 360;
+    stageRotation = landscape ? (angle === 270 ? 90 : -90) : 0;
+    document.documentElement.classList.toggle("is-rotated", landscape);
+    document.documentElement.style.setProperty("--stage-rotation", `${stageRotation}deg`);
+  }
+
+  function stageSize() {
+    return { width: stage.offsetWidth, height: stage.offsetHeight };
+  }
+
+  function toStagePoint(clientX, clientY) {
+    if (!stageRotation) return { x: clientX, y: clientY };
+    const theta = stageRotation * Math.PI / 180;
+    const cos = Math.cos(theta);
+    const sin = Math.sin(theta);
+    const dx = clientX - window.innerWidth / 2;
+    const dy = clientY - window.innerHeight / 2;
+    const size = stageSize();
+    return {
+      x: dx * cos + dy * sin + size.width / 2,
+      y: -dx * sin + dy * cos + size.height / 2
+    };
   }
 
   function clamp(value, min, max) {
@@ -716,14 +775,14 @@
   }
 
   function defaultPosition() {
-    const rect = stage.getBoundingClientRect();
+    const rect = stageSize();
     const noteSize = notePhysicsSize();
     state.x = Math.max(18, rect.width - noteSize.width - 28);
     state.y = Math.max(80, rect.height - noteSize.height - 96);
   }
 
   function centerPosition() {
-    const rect = stage.getBoundingClientRect();
+    const rect = stageSize();
     const noteSize = notePhysicsSize();
     state.x = Math.max(18, (rect.width - noteSize.width) / 2);
     state.y = Math.max(80, (rect.height - noteSize.height) / 2);
@@ -920,7 +979,7 @@
   }
 
   function bounceTiltAtEdges(nextX, nextY) {
-    const stageRect = stage.getBoundingClientRect();
+    const stageRect = stageSize();
     const noteSize = notePhysicsSize();
     const maxX = Math.max(0, stageRect.width - noteSize.width);
     const maxY = Math.max(0, stageRect.height - noteSize.height);
@@ -1028,11 +1087,13 @@
   }
 
   function crossedExitEdge(rect) {
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
+    const size = stageRotation ? stageSize() : { width: window.innerWidth, height: window.innerHeight };
+    const vw = size.width;
+    const vh = size.height;
     const sensitivity = Number(state.sensitivity) || 0;
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top + rect.height / 2;
+    const center = toStagePoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+    const centerX = center.x;
+    const centerY = center.y;
 
     if (state.edge === "left") return centerX <= sensitivity;
     if (state.edge === "right") return centerX >= vw - sensitivity;
@@ -1139,16 +1200,18 @@
   note.addEventListener("pointerdown", (event) => {
     if (state.hidden) return;
     event.preventDefault();
+    lockPortrait();
     note.setPointerCapture(event.pointerId);
     note.classList.add("is-dragging");
     tilt.vx = 0;
     tilt.vy = 0;
+    const point = toStagePoint(event.clientX, event.clientY);
     drag = {
       pointerId: event.pointerId,
-      pointerX: event.clientX,
-      pointerY: event.clientY,
-      offsetX: event.clientX - state.x,
-      offsetY: event.clientY - state.y,
+      pointerX: point.x,
+      pointerY: point.y,
+      offsetX: point.x - state.x,
+      offsetY: point.y - state.y,
       targetX: state.x,
       targetY: state.y,
       velocityX: 0,
@@ -1162,6 +1225,25 @@
     event.preventDefault();
   });
 
+  // Stop iOS long-press from selecting the note (blue highlight), opening the callout or lifting the image.
+  note.addEventListener("touchstart", (event) => {
+    event.preventDefault();
+  }, { passive: false });
+
+  note.addEventListener("dragstart", (event) => {
+    event.preventDefault();
+  });
+
+  document.addEventListener("contextmenu", (event) => {
+    event.preventDefault();
+  });
+
+  document.addEventListener("selectstart", (event) => {
+    const target = event.target;
+    if (target && target.closest && target.closest("input, select, textarea")) return;
+    event.preventDefault();
+  });
+
   note.addEventListener("animationend", () => {
     note.classList.remove("is-revealing");
   });
@@ -1170,13 +1252,14 @@
     if (!drag || drag.pointerId !== event.pointerId) return;
     const now = performance.now();
     const elapsed = Math.max(0.008, (now - drag.pointerTime) / 1000);
-    drag.velocityX = (event.clientX - drag.pointerX) / elapsed;
-    drag.velocityY = (event.clientY - drag.pointerY) / elapsed;
-    drag.pointerX = event.clientX;
-    drag.pointerY = event.clientY;
+    const point = toStagePoint(event.clientX, event.clientY);
+    drag.velocityX = (point.x - drag.pointerX) / elapsed;
+    drag.velocityY = (point.y - drag.pointerY) / elapsed;
+    drag.pointerX = point.x;
+    drag.pointerY = point.y;
     drag.pointerTime = now;
-    drag.targetX = event.clientX - drag.offsetX;
-    drag.targetY = event.clientY - drag.offsetY;
+    drag.targetX = point.x - drag.offsetX;
+    drag.targetY = point.y - drag.offsetY;
     updateReactiveNote();
     if (crossedExitEdge(note.getBoundingClientRect())) hideAtEdge();
   });
@@ -1334,7 +1417,11 @@
   controlsHotspot.addEventListener("click", showControls);
 
   function handleViewportChange() {
-    syncAppViewportSize();
+    syncOrientationLock();
+    const appSize = syncAppViewportSize();
+    // Rotating the phone keeps the portrait size, so the note stays where it is.
+    if (appSize === lastAppSize) return;
+    lastAppSize = appSize;
     if (!state.hidden) resetNote();
     normalizeSavedBackground();
   }
@@ -1344,6 +1431,73 @@
   if (window.visualViewport) {
     window.visualViewport.addEventListener("resize", handleViewportChange);
   }
+  if (window.screen && window.screen.orientation && window.screen.orientation.addEventListener) {
+    window.screen.orientation.addEventListener("change", handleViewportChange);
+  }
+
+  function motionNeedsPermission() {
+    return (typeof window.DeviceMotionEvent !== "undefined" && typeof window.DeviceMotionEvent.requestPermission === "function") ||
+      (typeof window.DeviceOrientationEvent !== "undefined" && typeof window.DeviceOrientationEvent.requestPermission === "function");
+  }
+
+  // iOS only delivers motion events once access is granted, so an incoming event means it is already on.
+  function probeMotionAccess(timeout) {
+    return new Promise((resolve) => {
+      let timer = null;
+      const finish = (granted) => {
+        window.clearTimeout(timer);
+        window.removeEventListener("devicemotion", onEvent, true);
+        window.removeEventListener("deviceorientation", onEvent, true);
+        resolve(granted);
+      };
+      const onEvent = (event) => {
+        const motion = event.accelerationIncludingGravity || event.acceleration;
+        const hasData = (motion && typeof motion.x === "number") || typeof event.beta === "number";
+        if (hasData) finish(true);
+      };
+      window.addEventListener("devicemotion", onEvent, true);
+      window.addEventListener("deviceorientation", onEvent, true);
+      timer = window.setTimeout(() => finish(false), timeout);
+    });
+  }
+
+  async function checkMotionAccess() {
+    if (!motionNeedsPermission() || motionCheckRunning || !motionGate.hidden) return;
+    motionCheckRunning = true;
+    const granted = await probeMotionAccess(900);
+    motionCheckRunning = false;
+    if (granted) {
+      ensureShakeListener(false);
+      return;
+    }
+    motionGateStatus.textContent = "";
+    motionGate.hidden = false;
+  }
+
+  async function requestMotionAccess() {
+    // Both requests must start inside the tap, before any await, or iOS refuses to show the prompt.
+    const requests = [window.DeviceMotionEvent, window.DeviceOrientationEvent]
+      .filter((EventConstructor) => EventConstructor && typeof EventConstructor.requestPermission === "function")
+      .map((EventConstructor) => EventConstructor.requestPermission().catch(() => "denied"));
+    const results = await Promise.all(requests);
+
+    if (results.some((result) => result === "granted")) {
+      motionGate.hidden = true;
+      ensureShakeListener(false);
+      return;
+    }
+
+    motionGateStatus.textContent = "Adgang blev afvist. Luk appen helt (swipe den op), åbn den igen og tryk Tillad.";
+  }
+
+  motionAllowButton.addEventListener("click", requestMotionAccess);
+  motionSkipButton.addEventListener("click", () => {
+    motionGate.hidden = true;
+  });
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") checkMotionAccess();
+  });
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
@@ -1352,7 +1506,9 @@
   }
 
   updateTiltControls();
-  syncAppViewportSize();
+  lockPortrait();
+  syncOrientationLock();
+  lastAppSize = syncAppViewportSize();
   loadState();
   if (state.routineComplete) {
     state.routineActive = false;
@@ -1375,4 +1531,5 @@
   }, { once: true });
   applyState();
   if (state.hidden && needsShakeForCurrentNote()) ensureShakeListener();
+  checkMotionAccess();
 })();

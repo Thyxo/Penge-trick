@@ -1,4 +1,4 @@
-const cacheName = "penge-trick-v23";
+const cacheName = "penge-trick-v24";
 const assets = [
   "./",
   "index.html",
