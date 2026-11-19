@@ -13,6 +13,11 @@ struct StageView: View {
 
                 SecretZone(taps: $taps)
 
+                // Skal ligge i visningen for at skjule iOS' lydstyrke-boble
+                HiddenVolumeView(view: app.volume.volumeView)
+                    .frame(width: 1, height: 1)
+                    .allowsHitTesting(false)
+
                 if app.visible {
                     NoteView()
                         .transition(transition)

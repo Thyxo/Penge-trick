@@ -53,6 +53,7 @@ struct Settings: Codable, Equatable {
     var realStatusBar = true       // vis telefonens ægte statuslinje ovenpå
     var darkStatusText = false     // sort tekst i statuslinjen (lys baggrund)
     var haptics = true             // let vibration når sedlen forsvinder
+    var volumeButtons = true       // lydstyrke op = vis sedlen, ned = start forfra
 
     init() {}
 

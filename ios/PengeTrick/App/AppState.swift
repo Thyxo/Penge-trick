@@ -32,6 +32,7 @@ final class AppState {
     @ObservationIgnored private var revealTask: Task<Void, Never>?
     @ObservationIgnored let motion = Motion()
     @ObservationIgnored let haptics = Haptics()
+    @ObservationIgnored let volume = VolumeButtons()
 
     var all: [Denomination] { Denomination.builtIn + customNotes }
     var knownIDs: Set<String> { Set(all.map(\.id)) }
@@ -49,6 +50,9 @@ final class AppState {
         processBackground()
         motion.threshold = s.shakeStrength
         motion.onShake = { [weak self] in self?.shaken() }
+        volume.onUp = { [weak self] in self?.volumeUp() }
+        volume.onDown = { [weak self] in self?.volumeDown() }
+        if s.volumeButtons { volume.activate() }
         arm()
         if background == nil {
             Task {
@@ -60,13 +64,30 @@ final class AppState {
 
     func scene(active a: Bool) {
         active = a
-        if a { updateMotion() } else { motion.stop(); stopLink() }
+        if a {
+            updateMotion()
+            if s.volumeButtons && started { volume.activate() }
+        } else { motion.stop(); stopLink() }
+    }
+
+    /// Lydstyrke op: vis sedlen (i stedet for at ryste)
+    private func volumeUp() {
+        guard s.volumeButtons, !secretOpen, !visible, !exiting else { return }
+        if s.mode == "routine" && routine.current == nil { return }
+        reveal()
+    }
+
+    /// Lydstyrke ned: start forfra
+    private func volumeDown() {
+        guard s.volumeButtons, !secretOpen else { return }
+        resetPressed()
     }
 
     private func changed(from old: Settings) {
         if old.scrubStatusBar != s.scrubStatusBar { processBackground() }
         if old.shakeStrength != s.shakeStrength { motion.threshold = s.shakeStrength }
         if old.tilt != s.tilt { if s.tilt { motion.calibrate() }; updateMotion() }
+        if s.volumeButtons && !old.volumeButtons { volume.activate() }
     }
 
     /// Klar til tricket: læg sedlen (eller rutinens første) på plads – skjult hvis den skal rystes frem
