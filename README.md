@@ -1,5 +1,35 @@
 # Penge Trick
 
+Penge Trick findes nu som **native iPhone-app** (SideStore) og som webapp.
+
+## iPhone-app (SideStore) – anbefalet
+
+**SideStore-source:** `https://raw.githubusercontent.com/Thyxo/Penge-trick/main/sidestore/apps.json`
+
+1. Åbn SideStore → **Sources** → **+** → indsæt linket.
+2. Installér **Penge Trick**.
+3. Åbn appen. Panelet åbner selv første gang: vælg et screenshot af din hjemmeskærm.
+4. Husk at SideStore skal opdateres hver 7. dag. Gør det før et show.
+
+Forskelle fra webappen:
+
+- **Ægte statuslinje:** appen visker statuslinjen ud af screenshottet og viser telefonens rigtige ur, batteri og signal ovenpå. Du behøver ikke redigere billedet først.
+- **Låst i portræt**, ingen hjem-streg i bunden, ingen markering ved langt tryk.
+- **Ingen tilladelser:** ryst og tilt virker uden at spørge.
+- **Egne sedler:** tag et billede af en foldet seddel eller mønt, så klipper appen den fri.
+- **Kast:** slip sedlen med fart, så glider den videre og kan forsvinde ud ad kanten.
+- Fremkomst som **Pop**, **Glid ind** eller **Fade**.
+
+| Handling | Sådan |
+|---|---|
+| Hemmeligt panel | 5 hurtige tryk øverst til højre |
+| Start forfra (læg sedlen/rutinen klar igen) | Hold øverst til højre i 1 sek. |
+| Luk panelet | **Færdig** – sedlen lægges klar |
+
+Udvikling: `ios/` (Swift/SwiftUI, XcodeGen). GitHub Actions (`.github/workflows/ios.yml`) bygger ved push til `main` under `ios/`, laver en Release og opdaterer `sidestore/apps.json`. Hæv `MARKETING_VERSION` i `ios/project.yml` ved større ændringer. Test af logikken uden Mac: `swiftc ios/PengeTrick/Model/*.swift ios/Tests/main.swift -o /tmp/t && /tmp/t`.
+
+## Webapp
+
 Penge Trick er en mobil webapp til et simpelt pengetrick: appen viser et billede af din egen hjemmeskærm, mens en foldet seddel eller mønt kan trækkes ud af skærmen. Effekten virker bedst, når appen er installeret på hjemmeskærmen og kører som fuldskærms-webapp.
 
 Appen kan bruges direkte her:

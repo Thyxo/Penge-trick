@@ -1,0 +1,25 @@
+{
+  "name": "Penge Trick",
+  "identifier": "dk.thyxo.pengetrick.source",
+  "subtitle": "Træk en seddel ud af telefonen",
+  "iconURL": "https://raw.githubusercontent.com/Thyxo/Penge-trick/main/icons/icon-512.png",
+  "website": "https://github.com/Thyxo/Penge-trick",
+  "apps": [
+    {
+      "name": "Penge Trick",
+      "bundleIdentifier": "dk.thyxo.pengetrick",
+      "developerName": "Thyxo",
+      "subtitle": "Seddel ud af skærmen",
+      "localizedDescription": "Viser et billede af din egen hjemmeskærm, mens en foldet seddel eller mønt trækkes ud af skærmen – samtidig med at den ægte seddel trækkes frem bag telefonen. Ryst for at vise, rutiner med flere sedler, kast og tilt. Hemmeligt panel: 5 hurtige tryk øverst til højre.",
+      "iconURL": "https://raw.githubusercontent.com/Thyxo/Penge-trick/main/icons/icon-512.png",
+      "tintColor": "6EE7B7",
+      "category": "entertainment",
+      "appPermissions": {
+        "entitlements": [],
+        "privacy": {}
+      },
+      "versions": []
+    }
+  ],
+  "news": []
+}

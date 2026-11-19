@@ -2,6 +2,15 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Native iOS app (ios/)
+
+`ios/` holds the native SideStore app (Swift/SwiftUI, XcodeGen, no .xcodeproj in git, iOS 17+, bundle `dk.thyxo.pengetrick`), built like the owner's other apps (Mosaik, Number Reader):
+
+- `ios/PengeTrick/Model/` is pure Swift (Foundation only): settings, physics (exit edge, flick/tilt glide, shake detector), routine. Tested by `ios/Tests/main.swift`, which CI runs before building: `swiftc ios/PengeTrick/Model/*.swift ios/Tests/main.swift -o /tmp/t && /tmp/t`.
+- `ios/PengeTrick/App/` (AppState, CoreMotion, images incl. status-bar scrub and Vision cut-out) and `ios/PengeTrick/Views/` (stage, secret panel: 5 quick taps top-right, hold = re-arm).
+- Note images are copied from `assets/` into `ios/PengeTrick/Resources/Notes/` (folder resource). Icon: `python3 scripts/make-icon.py`.
+- CI `.github/workflows/ios.yml` (push to `main` under `ios/**`): unsigned IPA → GitHub Release → commits `sidestore/apps.json`. Pull `main` before pushing. Bump `MARKETING_VERSION` in `ios/project.yml` for bigger changes.
+
 ## What this is
 
 Penge Trick is a Danish-language mobile PWA implementing a magic trick: the app displays a photo of the user's own home screen while a folded banknote/coin image can be dragged out from the edge of the display, creating the illusion that a real note is emerging from the phone. It's a static site (no build step, no framework, no package.json) — vanilla HTML/CSS/JS, deployed to Vercel at penge-trick.vercel.app.

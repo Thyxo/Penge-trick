@@ -1,0 +1,5 @@
+# Genereres af XcodeGen / Xcode
+PengeTrick.xcodeproj/
+PengeTrick/Info.plist
+build/
+DerivedData/
