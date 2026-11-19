@@ -18,7 +18,8 @@ Forskelle fra webappen:
 - **Ingen tilladelser:** ryst og tilt virker uden at spørge.
 - **Egne sedler:** tag et billede af en foldet seddel eller mønt, så klipper appen den fri.
 - **Kast:** slip sedlen med fart, så glider den videre og kan forsvinde ud ad kanten.
-- Fremkomst som **Pop**, **Glid ind** eller **Fade**.
+- Fremkomst som **Pop**, **Glid ind** eller **Fade**, og forsvinden som **Glid ud** eller **Forsvind straks** (som webappen).
+- Panelet er delt i afsnit, der kan klappes sammen.
 
 | Handling | Sådan |
 |---|---|

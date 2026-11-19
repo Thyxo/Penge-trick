@@ -83,7 +83,9 @@ do {
     let old = try! JSONSerialization.data(withJSONObject: ["denom": "500", "edge": "left", "size": 1.2])
     let s = Settings.merged(old)
     check(s?.denom == "500" && s?.edge == .left && s?.size == 1.2, "gemte værdier læses")
-    check(s?.realStatusBar == true && s?.reveal == .pop && s?.shakeStrength == 1.6, "manglende felter får standard")
+    check(s?.realStatusBar == true && s?.reveal == .pop && s?.shakeStrength == 1.6 && s?.exit == .slide, "manglende felter får standard")
+    let vanish = try! JSONSerialization.data(withJSONObject: ["exit": "vanish"])
+    check(Settings.merged(vanish)?.exit == .vanish, "forsvind straks gemmes")
     check(Settings.merged(Data("x".utf8)) == nil, "ugyldige data afvises")
 }
 

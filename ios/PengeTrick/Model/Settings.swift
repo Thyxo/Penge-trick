@@ -28,6 +28,18 @@ enum RevealStyle: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+/// Sådan forsvinder sedlen ved kanten
+enum ExitStyle: String, Codable, CaseIterable, Identifiable {
+    case slide, vanish
+    var id: String { rawValue }
+    var label: String {
+        switch self {
+        case .slide: return "Glid ud"
+        case .vanish: return "Forsvind straks"
+        }
+    }
+}
+
 struct Settings: Codable, Equatable {
     var mode = "single"            // single | routine
     var denom = "100"              // valgt seddel (Valør)
@@ -45,6 +57,7 @@ struct Settings: Codable, Equatable {
     var shakeReveal = false        // start skjult, ryst for at vise (Valør)
     var shakeStrength = 1.6        // g pr. stød
     var reveal = RevealStyle.pop
+    var exit = ExitStyle.slide         // glid ud ad kanten, eller forsvind med det samme (som webappen)
 
     var bgX = 0.0                  // baggrundens forskydning (pt)
     var bgY = 0.0

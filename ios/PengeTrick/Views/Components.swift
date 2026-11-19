@@ -78,3 +78,55 @@ struct PillButton: View {
         .buttonStyle(.borderless)
     }
 }
+
+/// Afsnit der kan klappes sammen: titelrækken med pil åbner/lukker (som en række i Indstillinger)
+struct FoldSection<Content: View, Footer: View>: View {
+    let title: String
+    let icon: String
+    let color: Color
+    let id: String
+    @Binding var open: Set<String>
+    @ViewBuilder var content: () -> Content
+    @ViewBuilder var footer: () -> Footer
+
+    init(_ title: String, icon: String, color: Color, id: String, open: Binding<Set<String>>,
+         @ViewBuilder content: @escaping () -> Content, @ViewBuilder footer: @escaping () -> Footer) {
+        self.title = title; self.icon = icon; self.color = color; self.id = id
+        _open = open
+        self.content = content
+        self.footer = footer
+    }
+
+    var body: some View {
+        let isOpen = open.contains(id)
+        Section {
+            Button {
+                withAnimation(.snappy(duration: 0.25)) {
+                    if isOpen { open.remove(id) } else { open.insert(id) }
+                }
+            } label: {
+                HStack {
+                    RowLabel(title, icon: icon, color: color)
+                        .fontWeight(.semibold)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.tertiary)
+                        .rotationEffect(.degrees(isOpen ? 90 : 0))
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            if isOpen { content() }
+        } footer: {
+            if isOpen { footer() }
+        }
+    }
+}
+
+extension FoldSection where Footer == EmptyView {
+    init(_ title: String, icon: String, color: Color, id: String, open: Binding<Set<String>>,
+         @ViewBuilder content: @escaping () -> Content) {
+        self.init(title, icon: icon, color: color, id: id, open: open, content: content, footer: { EmptyView() })
+    }
+}

@@ -228,7 +228,13 @@ final class AppState {
         dragging = false
         stopLink()
         if s.haptics { haptics.exit() }
-        withAnimation(.easeIn(duration: 0.2)) { visible = false }
+        if s.exit == .vanish {
+            var t = Transaction()
+            t.disablesAnimations = true
+            withTransaction(t) { visible = false }
+        } else {
+            withAnimation(.easeIn(duration: 0.2)) { visible = false }
+        }
         revealTask?.cancel()
         revealTask = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(260))

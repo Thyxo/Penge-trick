@@ -49,7 +49,7 @@ struct StageView: View {
         case .fade: insertion = .opacity
         case .slide: insertion = .move(edge: edge)
         }
-        return .asymmetric(insertion: insertion, removal: .move(edge: edge))
+        return .asymmetric(insertion: insertion, removal: app.s.exit == .vanish ? .identity : .move(edge: edge))
     }
 
     private func swiftUIEdge(_ e: ExitEdge) -> Edge {

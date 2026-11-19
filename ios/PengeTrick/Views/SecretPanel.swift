@@ -9,6 +9,13 @@ struct SecretPanel: View {
     @State private var bgPick: PhotosPickerItem?
     @State private var notePick: PhotosPickerItem?
     @State private var busy = false
+    /// Hvilke afsnit er foldet ud (huskes mellem åbninger)
+    @AppStorage("pengetrick.panel.open") private var openRaw = "note"
+
+    private var openSet: Binding<Set<String>> {
+        Binding(get: { Set(openRaw.split(separator: ",").map(String.init)) },
+                set: { openRaw = $0.sorted().joined(separator: ",") })
+    }
 
     var body: some View {
         NavigationStack {
@@ -72,7 +79,7 @@ struct SecretPanel: View {
 
     private var noteSection: some View {
         @Bindable var app = app
-        return Section {
+        return FoldSection("Seddel", icon: "banknote.fill", color: .green, id: "note", open: openSet) {
             Picker("Tilstand", selection: $app.s.mode) {
                 Text("Én seddel").tag("single")
                 Text("Rutine").tag("routine")
@@ -81,8 +88,6 @@ struct SecretPanel: View {
             .listRowSeparator(.hidden)
 
             if app.s.mode == "routine" { routineRows } else { singleRows }
-        } header: {
-            Text("Seddel")
         } footer: {
             Text(app.s.mode == "routine"
                  ? "Sedlerne vises én efter én midt på skærmen. Rutinen starter forfra, når panelet lukkes."
@@ -134,7 +139,7 @@ struct SecretPanel: View {
 
     private var revealSection: some View {
         @Bindable var app = app
-        return Section {
+        return FoldSection("Fremkomst og forsvinden", icon: "sparkles", color: .pink, id: "reveal", open: openSet) {
             if app.s.mode == "single" {
                 Toggle(isOn: $app.s.shakeReveal) {
                     RowLabel("Start skjult", icon: "eye.slash.fill", color: .purple, detail: "Ryst (eller lydstyrke op) for at vise")
@@ -149,10 +154,13 @@ struct SecretPanel: View {
             Picker(selection: $app.s.reveal) {
                 ForEach(RevealStyle.allCases) { Text($0.label).tag($0) }
             } label: {
-                RowLabel("Animation", icon: "sparkles", color: .pink)
+                RowLabel("Dukker op", icon: "sparkles", color: .pink)
             }
-        } header: {
-            Text("Fremkomst")
+            Picker(selection: $app.s.exit) {
+                ForEach(ExitStyle.allCases) { Text($0.label).tag($0) }
+            } label: {
+                RowLabel("Forsvinder", icon: "arrow.right.to.line", color: .red, detail: "Ved kanten")
+            }
         }
     }
 
@@ -160,15 +168,13 @@ struct SecretPanel: View {
 
     private var controlSection: some View {
         @Bindable var app = app
-        return Section {
+        return FoldSection("Betjening", icon: "slider.horizontal.3", color: .orange, id: "control", open: openSet) {
             Toggle(isOn: $app.s.volumeButtons) {
                 RowLabel("Lydstyrkeknapper", icon: "speaker.wave.2.fill", color: .orange, detail: "Op = vis sedlen · ned = start forfra")
             }
             Toggle(isOn: $app.s.haptics) {
                 RowLabel("Vibration", icon: "hand.tap.fill", color: .indigo, detail: "Når sedlen forsvinder og ved start forfra")
             }
-        } header: {
-            Text("Betjening")
         } footer: {
             Text("Start forfra kan også gøres ved at holde øverst til højre i 1 sek.")
         }
@@ -178,7 +184,7 @@ struct SecretPanel: View {
 
     private var backgroundSection: some View {
         @Bindable var app = app
-        return Section {
+        return FoldSection("Hjemmeskærm", icon: "photo.fill", color: .teal, id: "background", open: openSet) {
             HStack(spacing: 14) {
                 thumb(app.background, width: 54, height: 112)
                 VStack(alignment: .leading, spacing: 8) {
@@ -201,8 +207,6 @@ struct SecretPanel: View {
                             text: "\(Int((app.s.bgScale * 100).rounded())) %")
                 Button("Nulstil placering") { app.s.bgX = 0; app.s.bgY = 0; app.s.bgScale = 1 }
             }
-        } header: {
-            Text("Hjemmeskærm")
         }
     }
 
@@ -210,7 +214,7 @@ struct SecretPanel: View {
 
     private var motionSection: some View {
         @Bindable var app = app
-        return Section {
+        return FoldSection("Bevægelse", icon: "hand.draw.fill", color: .blue, id: "motion", open: openSet) {
             Picker("Forsvind ud ad", selection: $app.s.edge) {
                 ForEach(ExitEdge.allCases) { Text($0.label).tag($0) }
             }
@@ -225,8 +229,6 @@ struct SecretPanel: View {
             Toggle(isOn: $app.s.tilt) {
                 RowLabel("Tilt", icon: "gyroscope", color: .cyan, detail: "Glider når telefonen vippes")
             }
-        } header: {
-            Text("Bevægelse")
         } footer: {
             Text("Tilt nulstilles til den hældning telefonen har, når panelet lukkes.")
         }
@@ -236,7 +238,7 @@ struct SecretPanel: View {
 
     private var screenSection: some View {
         @Bindable var app = app
-        return Section {
+        return FoldSection("Skærm", icon: "iphone", color: .gray, id: "screen", open: openSet) {
             Toggle(isOn: $app.s.realStatusBar) {
                 RowLabel("Ægte statuslinje", icon: "clock.fill", color: .gray, detail: "Telefonens rigtige ur, signal og batteri")
             }
@@ -247,8 +249,6 @@ struct SecretPanel: View {
                 }
                 .pickerStyle(.segmented)
             }
-        } header: {
-            Text("Skærm")
         }
     }
 
